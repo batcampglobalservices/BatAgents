@@ -1,4 +1,4 @@
-import { uint256, type Call } from "starknet";
+import { uint256, type Call, type ProviderInterface } from "starknet";
 import {
   isPaymentTokenConfigured,
   PAYMENT_TOKEN_ADDRESS,
@@ -34,6 +34,14 @@ function buildApproveCall(spender: string, amount: bigint): Call {
     contractAddress: requirePaymentTokenAddress(),
     entrypoint: "approve",
     calldata: [spender, tokenAmount.low.toString(), tokenAmount.high.toString()],
+  };
+}
+
+function buildReadCall(entrypoint: string, calldata: string[], tokenAddress = requirePaymentTokenAddress()): Call {
+  return {
+    contractAddress: tokenAddress,
+    entrypoint,
+    calldata,
   };
 }
 
@@ -94,6 +102,33 @@ export async function approvePaymentToken(params: {
 
 export function getPaymentTokenDecimals() {
   return TOKEN_DECIMALS;
+}
+
+async function readTokenValue(
+  provider: Pick<ProviderInterface, "callContract">,
+  entrypoint: string,
+  calldata: string[],
+) {
+  const result = await provider.callContract(buildReadCall(entrypoint, calldata));
+  const low = BigInt(result[0] ?? "0");
+  const high = BigInt(result[1] ?? "0");
+
+  return (high << BigInt(128)) + low;
+}
+
+export async function getPaymentTokenBalance(
+  provider: Pick<ProviderInterface, "callContract">,
+  owner: string,
+) {
+  return readTokenValue(provider, "balanceOf", [owner]);
+}
+
+export async function getPaymentTokenAllowance(
+  provider: Pick<ProviderInterface, "callContract">,
+  owner: string,
+  spender: string,
+) {
+  return readTokenValue(provider, "allowance", [owner, spender]);
 }
 
 export { ERC20_ABI };

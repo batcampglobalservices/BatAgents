@@ -12,6 +12,8 @@ import {
 } from "@/lib/contracts";
 import {
   approvePaymentToken,
+  getPaymentTokenAllowance,
+  getPaymentTokenBalance,
   getPaymentTokenDecimals,
   parseTokenAmount,
 } from "@/lib/starknet-token";
@@ -74,6 +76,7 @@ export default function PaymentUnlockCard({
 
   const hasContract = isContractConfigured();
   const hasToken = isPaymentTokenConfigured();
+  const onchainAgentId = agent.onchainAgentId ?? agent.slug;
   const paymentTokenAddressValid = isValidStarknetAddress(
     DEFAULT_PAYMENT_TOKEN.address,
   );
@@ -88,6 +91,7 @@ export default function PaymentUnlockCard({
       hasContract &&
       hasToken &&
       paymentTokenAddressValid &&
+      (agent.onchainRegistrationTxHash || agent.onchainAgentId) &&
       !isHiredOnchain &&
       stage !== "checking" &&
       stage !== "approving" &&
@@ -128,13 +132,18 @@ export default function PaymentUnlockCard({
       setErrorMessage(null);
 
       try {
-        const providerForReads = account ?? provider.provider;
+        const providerForReads = provider.provider;
         const hired = await hasUserHiredAgentOnchain({
           provider: providerForReads,
           agentSlug: agent.slug,
+          agentOnchainId: onchainAgentId,
           buyerAddress: address,
         });
-        const stats = await getAgentOnchainStats(providerForReads, agent.slug);
+        const stats = await getAgentOnchainStats(
+          providerForReads,
+          agent.slug,
+          onchainAgentId,
+        );
 
         if (cancelled) {
           return;
@@ -164,7 +173,7 @@ export default function PaymentUnlockCard({
     return () => {
       cancelled = true;
     };
-  }, [account, address, agent.slug, hasContract, hasToken, provider]);
+  }, [account, address, agent.slug, agent.onchainAgentId, hasContract, hasToken, onchainAgentId, provider]);
 
   const statusLabel = useMemo(() => {
     if (isHiredOnchain || stage === "unlocked" || stage === "confirmed") {
@@ -245,6 +254,14 @@ export default function PaymentUnlockCard({
       return;
     }
 
+    if (!agent.onchainRegistrationTxHash && !agent.onchainAgentId) {
+      setStage("failed");
+      setErrorMessage(
+        "This agent is not registered onchain yet. It cannot be hired until the creator registers it.",
+      );
+      return;
+    }
+
     if (!paymentTokenAddressValid) {
       setStage("failed");
       setErrorMessage("Payment token address is invalid.");
@@ -263,35 +280,55 @@ export default function PaymentUnlockCard({
 
     try {
       const amount = parseTokenAmount(agent.price, getPaymentTokenDecimals());
+      const readClient = provider.provider;
 
-      setStage("approving");
-      const approvalTxHash = await approvePaymentToken({
-        account,
-        spender: BATAGENTS_CONTRACT_ADDRESS,
-        amount,
-      });
-      setTxHash(approvalTxHash);
-      setStage("approval-pending");
+      setStage("checking");
+      const balance = await getPaymentTokenBalance(readClient, address);
 
-      const approvalStatus = await waitForStarknetTransaction(
-        account,
-        approvalTxHash,
-      );
-
-      if (approvalStatus !== "accepted") {
+      if (balance < amount) {
         throw new Error(
-          approvalStatus === "rejected"
-            ? "Token approval was rejected or reverted."
-            : "Approval timed out before Starknet Sepolia confirmed it.",
+          "You need Starknet Sepolia ETH to hire this agent. Fund your wallet using a Starknet Sepolia faucet, then try again.",
         );
       }
 
-      setStage("approval-confirmed");
+      const allowance = await getPaymentTokenAllowance(
+        readClient,
+        address,
+        BATAGENTS_CONTRACT_ADDRESS,
+      );
+
+      if (allowance < amount) {
+        setStage("approving");
+        const approvalTxHash = await approvePaymentToken({
+          account,
+          spender: BATAGENTS_CONTRACT_ADDRESS,
+          amount,
+        });
+        setTxHash(approvalTxHash);
+        setStage("approval-pending");
+
+        const approvalStatus = await waitForStarknetTransaction(
+          account,
+          approvalTxHash,
+        );
+
+        if (approvalStatus !== "accepted") {
+          throw new Error(
+            approvalStatus === "rejected"
+              ? "Token approval was rejected or reverted."
+              : "Approval timed out before Starknet Sepolia confirmed it.",
+          );
+        }
+
+        setStage("approval-confirmed");
+      }
+
       setStage("hiring");
 
       const hireTxHash = await hireAgentOnchain({
         account,
         agentSlug: agent.slug,
+        agentOnchainId: onchainAgentId,
       });
       setTxHash(hireTxHash);
       setStage("hire-submitted");
@@ -307,8 +344,9 @@ export default function PaymentUnlockCard({
       }
 
       const verifiedHire = await hasUserHiredAgentOnchain({
-        provider: account,
+        provider: readClient,
         agentSlug: agent.slug,
+        agentOnchainId: onchainAgentId,
         buyerAddress: address,
       });
 
@@ -344,7 +382,11 @@ export default function PaymentUnlockCard({
         createdAt: now,
       });
 
-      const refreshedStats = await getAgentOnchainStats(account, agent.slug);
+      const refreshedStats = await getAgentOnchainStats(
+        readClient,
+        agent.slug,
+        onchainAgentId,
+      );
       setIsHiredOnchain(true);
       setOnchainStats(refreshedStats);
       setStage("confirmed");
@@ -359,6 +401,58 @@ export default function PaymentUnlockCard({
     } catch (error) {
       setStage("failed");
       setErrorMessage(error instanceof Error ? error.message : "Hire failed.");
+    }
+  }
+
+  async function verifyAccessAgain() {
+    if (!address) {
+      setStage("not-connected");
+      setErrorMessage("Connect a Starknet wallet first.");
+      return;
+    }
+
+    if (!hasContract) {
+      setStage("failed");
+      setErrorMessage(
+        "BatAgents contract address is not configured. Add NEXT_PUBLIC_BATAGENTS_CONTRACT_ADDRESS after deployment.",
+      );
+      return;
+    }
+
+    try {
+      setStage("checking");
+      setErrorMessage(null);
+
+      const readClient = provider.provider;
+      const verifiedHire = await hasUserHiredAgentOnchain({
+        provider: readClient,
+        agentSlug: agent.slug,
+        agentOnchainId: onchainAgentId,
+        buyerAddress: address,
+      });
+
+      setIsHiredOnchain(verifiedHire);
+
+      if (verifiedHire) {
+        setStage("unlocked");
+        const refreshedStats = await getAgentOnchainStats(
+          readClient,
+          agent.slug,
+          onchainAgentId,
+        );
+        setOnchainStats(refreshedStats);
+        return;
+      }
+
+      setStage("not-hired");
+      setErrorMessage(
+        "Payment transaction was submitted, but contract access was not confirmed yet. Try verifying again.",
+      );
+    } catch (error) {
+      setStage("failed");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Verifying contract access failed.",
+      );
     }
   }
 
@@ -403,6 +497,16 @@ export default function PaymentUnlockCard({
       <div className="mt-4">
         <WalletConnectButton />
       </div>
+
+      <details className="mt-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+        <summary className="cursor-pointer list-none text-sm font-medium text-white">
+          Testing on Starknet Sepolia
+        </summary>
+        <div className="mt-3 text-sm leading-6 text-slate-300">
+          Connect Argent X or Braavos, switch to Starknet Sepolia, fund the wallet with Sepolia ETH,
+          then hire the agent. The chat unlocks only after the contract confirms your hire.
+        </div>
+      </details>
 
       {!hasContract ? (
         <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-100">
@@ -507,6 +611,16 @@ export default function PaymentUnlockCard({
         <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-100">
           {errorMessage}
         </div>
+      ) : null}
+
+      {(stage === "failed" || stage === "not-hired") && hasContract ? (
+        <button
+          type="button"
+          onClick={verifyAccessAgain}
+          className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-cyan-400/30 hover:bg-white/10"
+        >
+          Verify access again
+        </button>
       ) : null}
     </section>
   );

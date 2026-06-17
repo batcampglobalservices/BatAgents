@@ -26,12 +26,12 @@ export default function WalletConnectButton() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">
-            Starknet wallet
+            Live wallet
           </p>
           <p className="mt-1 text-sm text-slate-300">
             {isConnected
-              ? "Connected to Starknet Sepolia"
-              : "Connect Starknet Wallet"}
+              ? "Connected to Starknet Sepolia testnet"
+              : "Connect a live Starknet wallet"}
           </p>
         </div>
 
@@ -86,17 +86,17 @@ export default function WalletConnectButton() {
                 >
                   <span className="inline-flex items-center gap-2">
                     <Wallet className="h-4 w-4" />
-                    {connector.name}
+                    Connect {connector.name}
                   </span>
                   <span className="text-xs text-slate-400">
-                    {pending ? "Connecting..." : "Install-ready"}
+                    {pending ? "Connecting..." : "Live wallet"}
                   </span>
                 </button>
               );
             })
           ) : (
             <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
-              Install Argent X or Braavos to continue.
+              Install Argent X or Braavos, then refresh to connect to Starknet Sepolia.
             </div>
           )}
         </div>

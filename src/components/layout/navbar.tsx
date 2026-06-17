@@ -9,7 +9,6 @@ import type { Session } from "@supabase/supabase-js";
 import { getDashboardPathForRole, getRoleLabel } from "@/lib/demo-auth";
 import { getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
-import { profileToAppUser } from "@/lib/db/profiles";
 import type { AppUser, UserRole } from "@/types/user";
 
 const links = [
@@ -53,25 +52,13 @@ export default function Navbar() {
       setSession(currentSession);
 
       if (currentSession?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", currentSession.user.id)
-          .maybeSingle();
-
-        if (!mounted) return;
-
-        if (profile) {
-          setUser(profileToAppUser(profile));
-        } else {
-          setUser({
-            id: currentSession.user.id,
-            name: currentSession.user.user_metadata?.full_name ?? currentSession.user.email ?? "BatAgents User",
-            email: currentSession.user.email ?? "",
-            role: (currentSession.user.user_metadata?.role as UserRole | undefined) ?? "buyer",
-            joinedAt: currentSession.user.created_at,
-          });
-        }
+        setUser({
+          id: currentSession.user.id,
+          name: currentSession.user.user_metadata?.full_name ?? currentSession.user.email ?? "BatAgents User",
+          email: currentSession.user.email ?? "",
+          role: (currentSession.user.user_metadata?.role as UserRole | undefined) ?? "buyer",
+          joinedAt: currentSession.user.created_at,
+        });
       } else {
         setUser(null);
       }
@@ -86,17 +73,6 @@ export default function Navbar() {
 
       if (!nextSession?.user) {
         setUser(null);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", nextSession.user.id)
-        .maybeSingle();
-
-      if (profile) {
-        setUser(profileToAppUser(profile));
         return;
       }
 

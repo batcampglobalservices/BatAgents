@@ -4,17 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowRight, Wallet, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { getDashboardPathForRole } from "@/lib/demo-auth";
 import type { UserRole } from "@/types/user";
 import { getSupabaseBrowserClient, getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
-import { getProfileByEmail, upsertProfile } from "@/lib/db/profiles";
+import WalletConnectButton from "@/components/wallet/wallet-connect-button";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [walletConnected, setWalletConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabaseConfigured = isSupabaseConfigured();
@@ -83,17 +82,7 @@ export default function LoginPage() {
                 throw new Error(authError?.message || "Supabase login failed.");
               }
 
-              const profile = await getProfileByEmail(data.user.email ?? email);
-              const resolvedProfile =
-                profile ??
-                (await upsertProfile({
-                  id: data.user.id,
-                  email: data.user.email ?? email,
-                  displayName: data.user.user_metadata?.full_name ?? data.user.email ?? email,
-                  role: (data.user.user_metadata?.role as UserRole | undefined) ?? "buyer",
-                }));
-
-              const nextRole = resolvedProfile.role ?? "buyer";
+              const nextRole = (data.user.user_metadata?.role as UserRole | undefined) ?? "buyer";
               router.push(getDashboardPathForRole(nextRole));
             } catch (loginError) {
               setError(
@@ -146,16 +135,8 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setWalletConnected(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-cyan-400/30 hover:bg-white/10"
-          >
-            <Wallet className="h-4 w-4" />
-            {walletConnected ? "Wallet connected" : "Connect wallet"}
-          </button>
-
+        <div className="mt-6 grid gap-3">
+          <WalletConnectButton />
           <button
             type="submit"
             disabled={loading}

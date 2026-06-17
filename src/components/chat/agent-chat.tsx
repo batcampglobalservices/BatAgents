@@ -53,6 +53,7 @@ export default function AgentChat({ agent }: AgentChatProps) {
   const [taskProof, setTaskProof] = useState<TaskProof | null>(null);
   const [savingProof, setSavingProof] = useState(false);
   const initialMessages = useMemo(() => createInitialMessages(agent), [agent]);
+  const onchainAgentId = agent.onchainAgentId ?? agent.slug;
 
   useEffect(() => {
     let cancelled = false;
@@ -83,14 +84,24 @@ export default function AgentChat({ agent }: AgentChatProps) {
         return;
       }
 
+      if (!agent.onchainRegistrationTxHash && !agent.onchainAgentId) {
+        setIsUnlocked(false);
+        setHireStatusError(
+          "This agent is not registered onchain yet. It cannot be hired until the creator registers it.",
+        );
+        setCheckingHireStatus(false);
+        return;
+      }
+
       setCheckingHireStatus(true);
       setHireStatusError(null);
 
       try {
-        const providerForReads = account ?? provider.provider;
+        const providerForReads = provider.provider;
         const hired = await hasUserHiredAgentOnchain({
           provider: providerForReads,
           agentSlug: agent.slug,
+          agentOnchainId: onchainAgentId,
           buyerAddress: address,
         });
 
@@ -118,7 +129,7 @@ export default function AgentChat({ agent }: AgentChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [account, address, agent.slug, provider]);
+  }, [account, address, agent.onchainAgentId, agent.onchainRegistrationTxHash, agent.slug, onchainAgentId, provider]);
 
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({

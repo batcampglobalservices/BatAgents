@@ -15,17 +15,20 @@ export type RegisterAgentParams = {
   agentSlug: string;
   price: number;
   decimals?: number;
+  agentOnchainId?: string;
 };
 
 export type HireAgentParams = {
   account: AccountInterface | { execute?: (calls: Call[]) => Promise<ExecuteResponse> };
   agentSlug: string;
+  agentOnchainId?: string;
 };
 
 export type HasUserHiredParams = {
   provider: ProviderInterface | AccountInterface;
   agentSlug: string;
   buyerAddress: string;
+  agentOnchainId?: string;
 };
 
 type OnchainAgentStats = {
@@ -49,6 +52,10 @@ function buildContractCall(entrypoint: string, calldata: string[]): Call {
     entrypoint,
     calldata,
   };
+}
+
+function resolveAgentOnchainId(agentSlug: string, explicitOnchainId?: string) {
+  return explicitOnchainId?.trim() || getAgentOnchainId(agentSlug);
 }
 
 function getExecuteFn(
@@ -94,21 +101,27 @@ export function buildRegisterAgentCall(
   agentSlug: string,
   price: number,
   decimals = 18,
+  agentOnchainId?: string,
 ): Call {
   const priceUnits = uint256.bnToUint256(parseTokenAmount(price, decimals));
 
   return buildContractCall("register_agent", [
-    getAgentOnchainId(agentSlug),
+    resolveAgentOnchainId(agentSlug, agentOnchainId),
     priceUnits.low.toString(),
     priceUnits.high.toString(),
   ]);
 }
 
-export function buildHireAgentCall(agentSlug: string, creator: string, price: bigint): Call {
+export function buildHireAgentCall(
+  agentSlug: string,
+  creator: string,
+  price: bigint,
+  agentOnchainId?: string,
+): Call {
   const priceUnits = uint256.bnToUint256(price);
 
   return buildContractCall("hire_agent", [
-    getAgentOnchainId(agentSlug),
+    resolveAgentOnchainId(agentSlug, agentOnchainId),
     creator,
     priceUnits.low.toString(),
     priceUnits.high.toString(),
@@ -120,6 +133,7 @@ export async function registerAgentOnchain({
   agentSlug,
   price,
   decimals = 18,
+  agentOnchainId,
 }: RegisterAgentParams): Promise<string> {
   const execute = getExecuteFn(account);
 
@@ -127,13 +141,16 @@ export async function registerAgentOnchain({
     throw new Error("Connected Starknet account is not available.");
   }
 
-  const result = await execute([buildRegisterAgentCall(agentSlug, price, decimals)]);
+  const result = await execute([
+    buildRegisterAgentCall(agentSlug, price, decimals, agentOnchainId),
+  ]);
   return result.transaction_hash;
 }
 
 export async function hireAgentOnchain({
   account,
   agentSlug,
+  agentOnchainId,
 }: HireAgentParams): Promise<string> {
   const execute = getExecuteFn(account);
 
@@ -142,10 +159,10 @@ export async function hireAgentOnchain({
   }
 
   const readClient = account as unknown as StarknetReadClient;
-  const price = await getAgentOnchainPrice(readClient, agentSlug);
-  const creator = await getAgentCreatorOnchain(readClient, agentSlug);
+  const price = await getAgentOnchainPrice(readClient, agentSlug, agentOnchainId);
+  const creator = await getAgentCreatorOnchain(readClient, agentSlug, agentOnchainId);
   const result = await execute([
-    buildHireAgentCall(agentSlug, creator, BigInt(price)),
+    buildHireAgentCall(agentSlug, creator, BigInt(price), agentOnchainId),
   ]);
 
   return result.transaction_hash;
@@ -155,9 +172,10 @@ export async function hasUserHiredAgentOnchain({
   provider,
   agentSlug,
   buyerAddress,
+  agentOnchainId,
 }: HasUserHiredParams): Promise<boolean> {
   const result = await readContract(provider, "has_user_hired", [
-    getAgentOnchainId(agentSlug),
+    resolveAgentOnchainId(agentSlug, agentOnchainId),
     buyerAddress,
   ]);
 
@@ -167,9 +185,10 @@ export async function hasUserHiredAgentOnchain({
 export async function getAgentOnchainPrice(
   provider: StarknetReadClient,
   agentSlug: string,
+  agentOnchainId?: string,
 ): Promise<string> {
   const result = await readContract(provider, "get_agent_price", [
-    getAgentOnchainId(agentSlug),
+    resolveAgentOnchainId(agentSlug, agentOnchainId),
   ]);
 
   return decodeUint256(result).toString();
@@ -178,10 +197,15 @@ export async function getAgentOnchainPrice(
 export async function getAgentOnchainStats(
   provider: StarknetReadClient,
   agentSlug: string,
+  agentOnchainId?: string,
 ): Promise<OnchainAgentStats> {
   const [hiresResult, earningsResult] = await Promise.all([
-    readContract(provider, "get_agent_total_hires", [getAgentOnchainId(agentSlug)]),
-    readContract(provider, "get_agent_total_earnings", [getAgentOnchainId(agentSlug)]),
+    readContract(provider, "get_agent_total_hires", [
+      resolveAgentOnchainId(agentSlug, agentOnchainId),
+    ]),
+    readContract(provider, "get_agent_total_earnings", [
+      resolveAgentOnchainId(agentSlug, agentOnchainId),
+    ]),
   ]);
 
   return {
@@ -193,9 +217,10 @@ export async function getAgentOnchainStats(
 export async function getAgentCreatorOnchain(
   provider: StarknetReadClient,
   agentSlug: string,
+  agentOnchainId?: string,
 ): Promise<string> {
   const result = await readContract(provider, "get_agent_creator", [
-    getAgentOnchainId(agentSlug),
+    resolveAgentOnchainId(agentSlug, agentOnchainId),
   ]);
 
   return result[0] ?? "";

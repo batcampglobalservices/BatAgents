@@ -7,6 +7,7 @@ import {
   updateCreatedAgent as updateStoredCreatedAgent,
   type CreatedAgentRecord,
 } from "@/lib/created-agents";
+import { agentIdToFelt } from "@/lib/agent-id";
 import {
   getSupabaseAdminClient,
 } from "@/lib/supabase/admin";
@@ -71,6 +72,7 @@ function rowToAgent(row: {
           mode: (row.zero_g_mode as ZeroGProof["mode"]) ?? "demo",
         }
       : undefined,
+    onchainAgentId: row.onchain_agent_id ?? undefined,
     onchainRegistrationTxHash: row.onchain_registration_tx_hash ?? undefined,
   };
 }
@@ -136,6 +138,7 @@ export async function createAgentRecord(agent: CreatedAgentRecord) {
       zero_g_status: agent.zeroGProof ? "stored" : "pending",
       zero_g_stored_at: agent.zeroGProof?.storedAt ?? null,
       onchain_registration_tx_hash: agent.onchainRegistrationTxHash ?? null,
+      onchain_agent_id: agent.onchainAgentId ?? null,
       onchain_registered: Boolean(agent.onchainRegistrationTxHash),
       updated_at: new Date().toISOString(),
     });
@@ -183,6 +186,7 @@ export async function updateAgentOnchainRegistration(
     await client
       .from("agents")
       .update({
+        onchain_agent_id: agentIdToFelt(agentId),
         onchain_registration_tx_hash: txHash,
         onchain_registered: true,
         updated_at: new Date().toISOString(),
@@ -192,6 +196,7 @@ export async function updateAgentOnchainRegistration(
 
   updateStoredCreatedAgent(agentId, (agent) => ({
     ...agent,
+    onchainAgentId: agent.onchainAgentId ?? agentIdToFelt(agentId),
     onchainRegistrationTxHash: txHash,
   }));
 }

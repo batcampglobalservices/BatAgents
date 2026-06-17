@@ -26,6 +26,7 @@ export type Agent = {
   sampleQuestions: string[];
   createdAt: string;
   zeroGProof?: ZeroGProof;
+  onchainAgentId?: string;
   onchainRegistrationTxHash?: string;
   creatorUser?: string;
   publishedAt?: string;
