@@ -26,13 +26,18 @@ function createSupabaseMiddlewareClient(request: NextRequest, response: NextResp
 
 async function getUserRole(request: NextRequest, response: NextResponse, userId: string) {
   const supabase = createSupabaseMiddlewareClient(request, response);
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .maybeSingle();
 
-  return data?.role ?? null;
+  if (!error && data?.role) {
+    return data.role;
+  }
+
+  const { data: authUser } = await supabase.auth.getUser();
+  return (authUser.user?.user_metadata?.role as "buyer" | "creator" | "superadmin" | undefined) ?? null;
 }
 
 export async function middleware(request: NextRequest) {
