@@ -19,14 +19,10 @@ type AgentRouteViewProps = {
 };
 
 export default function AgentRouteView({ agentId, mode, initialAgent }: AgentRouteViewProps) {
-  const createdAgentsSnapshot = useSyncExternalStore(
-    subscribeCreatedAgentsStore,
-    getStoredCreatedAgentsSnapshot,
-    () => "[]",
-  );
+  useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
   const agent = useMemo(
     () => getPublishedAgentBySlug(staticAgents, agentId) ?? initialAgent ?? null,
-    [agentId, createdAgentsSnapshot, initialAgent],
+    [agentId, initialAgent],
   );
 
   if (!agent) {
@@ -77,7 +73,7 @@ function NotFoundState({ agentId }: { agentId: string }) {
       <p className="text-xs uppercase tracking-[0.35em] text-cyan-300">Not found</p>
       <h1 className="mt-4 text-3xl font-semibold text-white">Agent not found</h1>
       <p className="mt-3 text-sm leading-6 text-slate-300">
-        No published or created agent matches <span className="font-mono">{agentId}</span>.
+        No live agent matches <span className="font-mono">{agentId}</span>.
       </p>
       <Link
         href="/create-agent"

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 import StarknetProvider from "@/components/wallet/starknet-provider";
 
 type AppProvidersProps = {
@@ -8,5 +9,10 @@ type AppProvidersProps = {
 };
 
 export default function AppProviders({ children }: AppProvidersProps) {
-  return <StarknetProvider>{children}</StarknetProvider>;
+  return (
+    <StarknetProvider>
+      {children}
+      <Toaster richColors position="top-right" theme="dark" />
+    </StarknetProvider>
+  );
 }

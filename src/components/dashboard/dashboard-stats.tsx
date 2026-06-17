@@ -33,18 +33,24 @@ export default function DashboardStats({ agents }: DashboardStatsProps) {
     0,
   );
   const averageRating =
-    publishedAgents.reduce((sum, agent) => sum + agent.rating, 0) / publishedAgents.length;
+    publishedAgents.length > 0
+      ? publishedAgents.reduce((sum, agent) => sum + agent.rating, 0) / publishedAgents.length
+      : 0;
   const storedAgentProofs = publishedAgents.filter((agent) => agent.zeroGProof).length;
   const taskProofReceipts = publishedAgents.length * 3;
   const reputationRecords = publishedAgents.length * 6;
   const storageStatus =
-    storedAgentProofs === publishedAgents.length ? "Stored on 0G" : "0G Testnet Proof";
+    publishedAgents.length === 0
+      ? "No agents yet"
+      : storedAgentProofs === publishedAgents.length
+        ? "Stored on 0G"
+        : "0G Testnet Proof";
 
   const cards = [
     { label: "Total agents", value: String(publishedAgents.length), icon: Layers3 },
     { label: "Total hires", value: String(totalJobs), icon: BarChart3 },
     { label: "Total earnings", value: `${totalRevenue} STRK`, icon: Coins },
-    { label: "Average rating", value: averageRating.toFixed(1), icon: Star },
+    { label: "Average rating", value: publishedAgents.length > 0 ? averageRating.toFixed(1) : "0.0", icon: Star },
     { label: "0G metadata proofs", value: String(storedAgentProofs), icon: DatabaseZap },
     { label: "Task proof receipts", value: String(taskProofReceipts), icon: FileCheck2 },
     { label: "Reputation records", value: String(reputationRecords), icon: BadgeCheck },

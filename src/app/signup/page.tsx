@@ -6,7 +6,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { getDashboardPathForRole } from "@/lib/demo-auth";
-import { getSupabaseBrowserClient, getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
+import { getSupabaseBrowserClient, getSupabaseConfirmUrl, getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/user";
 import WalletConnectButton from "@/components/wallet/wallet-connect-button";
 
@@ -73,6 +73,7 @@ export default function SignupPage() {
                 email,
                 password,
                 options: {
+                  emailRedirectTo: getSupabaseConfirmUrl(),
                   data: {
                     full_name: name,
                     role,
@@ -112,7 +113,7 @@ export default function SignupPage() {
 
         {success ? (
           <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-            Account created. Redirecting to your dashboard.
+            Account created. Check mail for confirmation email.
           </div>
         ) : null}
 

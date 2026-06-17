@@ -23,10 +23,18 @@ export default function DashboardHeader({
   roleLabel,
   accentLabel,
 }: DashboardHeaderProps) {
+  const theme =
+    roleLabel.toLowerCase() === "creator"
+      ? "from-violet-500/15 via-white/5 to-cyan-400/10"
+      : roleLabel.toLowerCase() === "buyer"
+        ? "from-cyan-500/15 via-white/5 to-emerald-400/10"
+        : "from-amber-500/15 via-white/5 to-rose-400/10";
+
   return (
-    <header className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_80px_rgba(3,7,18,0.28)] backdrop-blur">
+    <header className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${theme} p-6 shadow-[0_20px_80px_rgba(3,7,18,0.28)] backdrop-blur`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.12),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.08),transparent_28%)]" />
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
+        <div className="relative max-w-3xl">
           <p className="text-xs uppercase tracking-[0.35em] text-cyan-300">
             {accentLabel ?? "Live workspace"}
           </p>
@@ -38,7 +46,7 @@ export default function DashboardHeader({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:w-[360px]">
+        <div className="relative grid gap-3 sm:grid-cols-2 lg:w-[360px]">
           <Badge label="Role" value={roleLabel} />
           <Badge label="Wallet" value={user.walletAddress ?? "No wallet"} />
           <Badge label="Joined" value={formatJoinedDate(user.joinedAt)} />

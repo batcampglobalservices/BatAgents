@@ -8,7 +8,7 @@ export default function AgentNotFound() {
         This agent does not exist.
       </h1>
       <p className="mt-4 text-lg leading-8 text-slate-300">
-        The selected agent could not be found in the current dummy data set.
+        The selected agent could not be found in the current live agent store.
       </p>
       <div className="mt-8 flex justify-center gap-3">
         <Link

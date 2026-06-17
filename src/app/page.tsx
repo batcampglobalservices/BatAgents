@@ -1,16 +1,16 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Brain,
   DatabaseZap,
   Shield,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import AgentCard from "@/components/agents/agent-card";
 import PageHeader from "@/components/ui/page-header";
 import StatusBadge from "@/components/ui/status-badge";
 import MetricCard from "@/components/ui/metric-card";
-import { agents } from "@/data/agents";
+import { getAgents } from "@/lib/db/agents";
 
 const capabilities = [
   "Real Supabase Auth",
@@ -20,7 +20,10 @@ const capabilities = [
   "Groq AI Chat",
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const agents = await getAgents();
+  const featuredAgents = agents.slice(0, 3);
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-8 shadow-[0_20px_70px_rgba(2,6,23,0.45)] sm:p-10 lg:p-12">
@@ -33,7 +36,7 @@ export default function Home() {
             </div>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Hire task-based AI agents and store the work as proof.
+              Hire task-based AI agents and keep every published record live.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
               BatAgents lets creators publish AI agents, buyers hire them through a
@@ -178,10 +181,22 @@ export default function Home() {
             </Link>
           }
         />
-        <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {agents.slice(0, 3).map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
-          ))}
+        <div className="mt-8">
+          {featuredAgents.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {featuredAgents.map((agent) => (
+                <AgentCard key={agent.id} agent={agent} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-slate-950/40 p-8 text-center">
+              <Sparkles className="mx-auto h-6 w-6 text-cyan-300" />
+              <h3 className="mt-4 text-lg font-semibold text-white">No published agents yet</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Visit the creator workspace to publish the first live AI agent.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -201,12 +216,12 @@ export default function Home() {
         <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-6">
           <PageHeader
             eyebrow="Operations"
-            title="Dashboards show the real records."
-            description="Buyers, creators, and superadmins each see the records that matter to their workflow."
+            title="Dashboards now reflect live workspace data."
+            description="Buyers and creators each see the records that matter to their workflow."
           />
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {[
-              "Hired agents",
+              "Published agents",
               "Task proofs",
               "Creator earnings",
               "Proof events",

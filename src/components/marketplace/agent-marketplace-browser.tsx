@@ -20,11 +20,7 @@ type SortKey = "newest" | "rating" | "price";
 export default function AgentMarketplaceBrowser({
   staticAgents,
 }: AgentMarketplaceBrowserProps) {
-  const createdAgentsSnapshot = useSyncExternalStore(
-    subscribeCreatedAgentsStore,
-    getStoredCreatedAgentsSnapshot,
-    () => "[]",
-  );
+  useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [onchainOnly, setOnchainOnly] = useState(false);
@@ -33,7 +29,7 @@ export default function AgentMarketplaceBrowser({
 
   const agents = useMemo(
     () => mergePublishedAgents(staticAgents),
-    [staticAgents, createdAgentsSnapshot],
+    [staticAgents],
   );
 
   const categories = useMemo(

@@ -25,10 +25,16 @@ export default function DashboardSidebar({
   roleLabel,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const theme =
+    roleLabel.toLowerCase() === "creator"
+      ? "from-violet-500/15 via-slate-950/80 to-cyan-500/10"
+      : roleLabel.toLowerCase() === "buyer"
+        ? "from-cyan-500/15 via-slate-950/80 to-emerald-500/10"
+        : "from-amber-500/15 via-slate-950/80 to-rose-500/10";
 
   return (
-    <aside className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 shadow-[0_20px_80px_rgba(3,7,18,0.28)] backdrop-blur lg:sticky lg:top-24 lg:h-fit">
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <aside className={`rounded-[2rem] border border-white/10 bg-gradient-to-b ${theme} p-5 shadow-[0_20px_80px_rgba(3,7,18,0.28)] backdrop-blur lg:sticky lg:top-24 lg:h-fit`}>
+      <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-emerald-400 to-violet-500 text-sm font-semibold text-slate-950">
             {user.name.slice(0, 1)}

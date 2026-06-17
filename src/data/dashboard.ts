@@ -7,6 +7,10 @@ import { buildReputationReceipt, buildTaskProof } from "@/lib/0g";
 const buyer = getMockUserByRole("buyer");
 const creator = getMockUserByRole("creator");
 const superadmin = getMockUserByRole("superadmin");
+const firstAgent = agents[0] ?? null;
+const secondAgent = agents[1] ?? firstAgent;
+const fourthAgent = agents[3] ?? firstAgent;
+const sixthAgent = agents[5] ?? fourthAgent ?? firstAgent;
 
 export const buyerDashboardData = {
   stats: {
@@ -21,32 +25,32 @@ export const buyerDashboardData = {
     status: "active" as const,
     lastChat: `Latest task work completed with ${agent.name}.`,
   })),
-  recentChats: [
+  recentChats: firstAgent && fourthAgent && sixthAgent ? [
     {
-      agent: agents[0].name,
+      agent: firstAgent.name,
       summary: "Pitch tightened to a stronger one-liner.",
       updatedAt: "2026-06-16T12:30:00.000Z",
     },
     {
-      agent: agents[3].name,
+      agent: fourthAgent.name,
       summary: "Research brief completed with takeaways.",
       updatedAt: "2026-06-15T16:20:00.000Z",
     },
     {
-      agent: agents[5].name,
+      agent: sixthAgent.name,
       summary: "Wallet-based product flow clarified.",
       updatedAt: "2026-06-14T14:05:00.000Z",
     },
-  ],
-  completedTasks: [
+  ] : [],
+  completedTasks: firstAgent && fourthAgent ? [
     {
       id: "task-001",
-      agentName: agents[0].name,
+      agentName: firstAgent.name,
       result: "Pitch deck trimmed and clarified for investors.",
       completedAt: "2026-06-16T12:15:00.000Z",
       proof: buildTaskProof({
         id: "task-001",
-        agentId: agents[0].id,
+        agentId: firstAgent.id,
         buyerWallet: buyer.walletAddress ?? "0x0g_buyer",
         taskSummary: "Pitch deck review",
         resultSummary: "Pitch deck trimmed and clarified for investors.",
@@ -57,12 +61,12 @@ export const buyerDashboardData = {
     },
     {
       id: "task-002",
-      agentName: agents[3].name,
+      agentName: fourthAgent.name,
       result: "Research brief captured the strongest market angles.",
       completedAt: "2026-06-15T16:20:00.000Z",
       proof: buildTaskProof({
         id: "task-002",
-        agentId: agents[3].id,
+        agentId: fourthAgent.id,
         buyerWallet: buyer.walletAddress ?? "0x0g_buyer",
         taskSummary: "Research brief",
         resultSummary: "Research brief captured the strongest market angles.",
@@ -71,19 +75,19 @@ export const buyerDashboardData = {
         completedAt: "2026-06-15T16:20:00.000Z",
       }),
     },
-  ],
-  reviews: [
+  ] : [],
+  reviews: firstAgent && sixthAgent ? [
     {
-      agent: agents[0].name,
+      agent: firstAgent.name,
       rating: 5,
       review: "Fast, direct, and useful feedback.",
     },
     {
-      agent: agents[5].name,
+      agent: sixthAgent.name,
       rating: 4,
       review: "Clean explanation of the wallet flow.",
     },
-  ],
+  ] : [],
   zeroGProofs: agents
     .filter((agent) => agent.zeroGProof)
     .slice(0, 2)
@@ -101,15 +105,17 @@ export const creatorDashboardData = {
     totalHires: agents.reduce((sum, agent) => sum + agent.completedJobs, 0),
     totalEarnings: agents.reduce((sum, agent) => sum + agent.price * agent.completedJobs, 0),
     averageRating:
-      agents.reduce((sum, agent) => sum + agent.rating, 0) / agents.length,
+      agents.length > 0
+        ? agents.reduce((sum, agent) => sum + agent.rating, 0) / agents.length
+        : 0,
     metadataProofs: agents.filter((agent) => agent.zeroGProof).length,
     taskProofReceipts: agents.length * 4,
   },
-  recentActivity: [
-    "Pitch Coach Agent got 8 new hires this week.",
-    "Research Agent received a 5-star proof receipt.",
-    "Web3 Guide Agent earned a new storage proof.",
-  ],
+  recentActivity: agents.length > 0 ? [
+    `${agents[0].name} got new hires this week.`,
+    `${agents[1]?.name ?? agents[0].name} received a proof receipt.`,
+    `${agents[2]?.name ?? agents[0].name} earned a new storage proof.`,
+  ] : [],
   agentRows: agents.map((agent, index) => ({
     id: agent.id,
     name: agent.name,
@@ -155,25 +161,33 @@ export const superadminDashboardData = {
   recentAgents: agents.slice(0, 4),
   recentTransactions: mockTransactions,
   proofActivity: [
-    buildTaskProof({
-      id: "superadmin-task-001",
-      agentId: agents[0].id,
-      buyerWallet: buyer.walletAddress ?? "0x0g_buyer",
-      taskSummary: "Pitch review",
-      resultSummary: "Proof receipt stored for recent task.",
-      paymentTxHash: "0x0g_tx_superadmin_task_001",
-      proofRootHash: "0x0g_superadmin_task_001",
-      completedAt: "2026-06-16T12:00:00.000Z",
-    }),
-    buildReputationReceipt({
-      id: "superadmin-rep-001",
-      agentId: agents[1].id,
-      rating: 5,
-      review: "Great buyer feedback captured in proof.",
-      reviewerWallet: buyer.walletAddress ?? "0x0g_buyer",
-      proofRootHash: "0x0g_superadmin_rep_001",
-      createdAt: "2026-06-16T12:20:00.000Z",
-    }),
+    ...(firstAgent
+      ? [
+          buildTaskProof({
+            id: "superadmin-task-001",
+            agentId: firstAgent.id,
+            buyerWallet: buyer.walletAddress ?? "0x0g_buyer",
+            taskSummary: "Pitch review",
+            resultSummary: "Proof receipt stored for recent task.",
+            paymentTxHash: "0x0g_tx_superadmin_task_001",
+            proofRootHash: "0x0g_superadmin_task_001",
+            completedAt: "2026-06-16T12:00:00.000Z",
+          }),
+        ]
+      : []),
+    ...(secondAgent
+      ? [
+          buildReputationReceipt({
+            id: "superadmin-rep-001",
+            agentId: secondAgent.id,
+            rating: 5,
+            review: "Great buyer feedback captured in proof.",
+            reviewerWallet: buyer.walletAddress ?? "0x0g_buyer",
+            proofRootHash: "0x0g_superadmin_rep_001",
+            createdAt: "2026-06-16T12:20:00.000Z",
+          }),
+        ]
+      : []),
   ],
   reportsQueue: mockReports,
   highlightedUsers: [buyer, creator, superadmin],

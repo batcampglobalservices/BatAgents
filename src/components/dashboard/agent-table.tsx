@@ -19,6 +19,17 @@ export default function AgentTable({ agents }: AgentTableProps) {
 
   const publishedAgents = mergePublishedAgents(agents);
 
+  if (publishedAgents.length === 0) {
+    return (
+      <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/40 p-8 text-center">
+        <h3 className="text-lg font-semibold text-white">No published agents yet</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          Creators can publish an agent from the create-agent workspace and it will appear here automatically.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
       <div className="grid grid-cols-[1.7fr_0.8fr_0.8fr_0.8fr_0.8fr_1fr_0.95fr_0.9fr] gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-[0.3em] text-slate-400">

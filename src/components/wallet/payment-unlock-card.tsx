@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Lock, Unlock } from "lucide-react";
 import { useAccount, useProvider } from "@starknet-react/core";
+import { toast } from "sonner";
 import type { Agent } from "@/types/agent";
 import { DEFAULT_PAYMENT_TOKEN, STARKNET_CHAIN } from "@/lib/starknet-config";
 import {
@@ -277,12 +278,14 @@ export default function PaymentUnlockCard({
     }
 
     setErrorMessage(null);
+    const loadingToast = toast.loading("Preparing Starknet Sepolia hire...");
 
     try {
       const amount = parseTokenAmount(agent.price, getPaymentTokenDecimals());
       const readClient = provider.provider;
 
       setStage("checking");
+      toast.loading("Checking wallet balance and allowance...", { id: loadingToast });
       const balance = await getPaymentTokenBalance(readClient, address);
 
       if (balance < amount) {
@@ -299,6 +302,9 @@ export default function PaymentUnlockCard({
 
       if (allowance < amount) {
         setStage("approving");
+        toast.loading("Approve the payment token in your wallet.", {
+          id: loadingToast,
+        });
         const approvalTxHash = await approvePaymentToken({
           account,
           spender: BATAGENTS_CONTRACT_ADDRESS,
@@ -324,6 +330,9 @@ export default function PaymentUnlockCard({
       }
 
       setStage("hiring");
+      toast.loading("Submitting hire transaction to Starknet Sepolia...", {
+        id: loadingToast,
+      });
 
       const hireTxHash = await hireAgentOnchain({
         account,
@@ -391,6 +400,9 @@ export default function PaymentUnlockCard({
       setOnchainStats(refreshedStats);
       setStage("confirmed");
       setStage("unlocked");
+      toast.success("Payment confirmed. Chat is unlocked.", {
+        id: loadingToast,
+      });
       markAgentUnlocked({
         agentId: agent.id,
         buyerWallet: address,
@@ -400,7 +412,9 @@ export default function PaymentUnlockCard({
       onUnlocked?.(hireTxHash);
     } catch (error) {
       setStage("failed");
-      setErrorMessage(error instanceof Error ? error.message : "Hire failed.");
+      const message = error instanceof Error ? error.message : "Hire failed.";
+      setErrorMessage(message);
+      toast.error(message, { id: loadingToast });
     }
   }
 
@@ -422,6 +436,7 @@ export default function PaymentUnlockCard({
     try {
       setStage("checking");
       setErrorMessage(null);
+      const loadingToast = toast.loading("Rechecking contract access...");
 
       const readClient = provider.provider;
       const verifiedHire = await hasUserHiredAgentOnchain({
@@ -435,6 +450,7 @@ export default function PaymentUnlockCard({
 
       if (verifiedHire) {
         setStage("unlocked");
+        toast.success("Contract access confirmed.", { id: loadingToast });
         const refreshedStats = await getAgentOnchainStats(
           readClient,
           agent.slug,
@@ -445,14 +461,17 @@ export default function PaymentUnlockCard({
       }
 
       setStage("not-hired");
+      toast.info("Hire not confirmed yet. Try again after the transaction settles.", {
+        id: loadingToast,
+      });
       setErrorMessage(
         "Payment transaction was submitted, but contract access was not confirmed yet. Try verifying again.",
       );
     } catch (error) {
       setStage("failed");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Verifying contract access failed.",
-      );
+      const message = error instanceof Error ? error.message : "Verifying contract access failed.";
+      setErrorMessage(message);
+      toast.error(message);
     }
   }
 

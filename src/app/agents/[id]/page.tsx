@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { agents, getAgentById } from "@/data/agents";
 import AgentRouteView from "@/components/agents/agent-route-view";
 import { getAgentBySlug } from "@/lib/db/agents";
 
@@ -9,14 +8,14 @@ type AgentPageProps = {
 };
 
 export async function generateStaticParams() {
-  return agents.map((agent) => ({ id: agent.id }));
+  return [];
 }
 
 export async function generateMetadata({
   params,
 }: AgentPageProps): Promise<Metadata> {
   const { id } = await params;
-  const agent = getAgentById(id);
+  const agent = await getAgentBySlug(id);
 
   if (!agent) {
     return {
@@ -32,8 +31,7 @@ export async function generateMetadata({
 
 export default async function AgentPage({ params }: AgentPageProps) {
   const { id } = await params;
-  const agent = getAgentById(id);
-  const publishedAgent = (await getAgentBySlug(id)) ?? agent;
+  const agent = await getAgentBySlug(id);
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -49,7 +47,7 @@ export default async function AgentPage({ params }: AgentPageProps) {
         </Link>
       </div>
 
-      <AgentRouteView agentId={id} mode="profile" initialAgent={publishedAgent} />
+      <AgentRouteView agentId={id} mode="profile" initialAgent={agent ?? null} />
     </section>
   );
 }

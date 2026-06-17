@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { agents } from "@/data/agents";
 import AgentMarketplaceBrowser from "@/components/marketplace/agent-marketplace-browser";
 import PageHeader from "@/components/ui/page-header";
 import { getAgents } from "@/lib/db/agents";
@@ -11,8 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MarketplacePage() {
-  const publishedAgents = await getAgents();
-  const initialAgents = publishedAgents.length > 0 ? publishedAgents : agents;
+  const initialAgents = await getAgents();
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
