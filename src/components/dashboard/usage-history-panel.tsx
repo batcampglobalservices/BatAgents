@@ -33,7 +33,11 @@ type ChartPoint = {
   count: number;
 };
 
-export default function UsageHistoryPanel() {
+type UsageHistoryPanelProps = {
+  walletAddress?: string;
+};
+
+export default function UsageHistoryPanel({ walletAddress }: UsageHistoryPanelProps) {
   useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
   const transactionsSnapshot = useSyncExternalStore(
     subscribeTransactionsStore,
@@ -50,7 +54,6 @@ export default function UsageHistoryPanel() {
     getStoredTaskProofsSnapshot,
     () => "[]",
   );
-  useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
 
   const transactions = useMemo(
     () => parseJson<PaymentTransactionRecord[]>(transactionsSnapshot),
@@ -59,11 +62,35 @@ export default function UsageHistoryPanel() {
   const hires = useMemo(() => parseJson<HireRecord[]>(hiresSnapshot), [hiresSnapshot]);
   const proofs = useMemo(() => parseJson<TaskProof[]>(proofsSnapshot), [proofsSnapshot]);
   const publishedAgents = mergePublishedAgents(staticAgents);
+  const scopedTransactions = useMemo(
+    () =>
+      walletAddress
+        ? transactions.filter(
+            (transaction) =>
+              transaction.buyerWallet.toLowerCase() === walletAddress.toLowerCase(),
+          )
+        : transactions,
+    [transactions, walletAddress],
+  );
+  const scopedHires = useMemo(
+    () =>
+      walletAddress
+        ? hires.filter((hire) => hire.buyerWallet.toLowerCase() === walletAddress.toLowerCase())
+        : hires,
+    [hires, walletAddress],
+  );
+  const scopedProofs = useMemo(
+    () =>
+      walletAddress
+        ? proofs.filter((proof) => proof.buyerWallet.toLowerCase() === walletAddress.toLowerCase())
+        : proofs,
+    [proofs, walletAddress],
+  );
 
   const summary = useMemo(() => {
-    const successfulTransactions = transactions.filter((item) => item.status === "successful");
+    const successfulTransactions = scopedTransactions.filter((item) => item.status === "successful");
     const totalSpend = successfulTransactions.reduce((sum, item) => sum + item.amount, 0);
-    const unlockedAgents = new Set(hires.map((item) => item.agentId)).size;
+    const unlockedAgents = new Set(scopedHires.map((item) => item.agentId)).size;
     const categories = new Map<string, number>();
 
     for (const agent of publishedAgents) {
@@ -72,17 +99,26 @@ export default function UsageHistoryPanel() {
 
     return {
       totalSpend,
-      totalTransactions: transactions.length,
-      totalHires: hires.length,
-      totalProofs: proofs.length,
+      totalTransactions: scopedTransactions.length,
+      totalHires: scopedHires.length,
+      totalProofs: scopedProofs.length,
       unlockedAgents,
       categories: Array.from(categories.entries()).map(([name, value]) => ({ name, value })),
     };
-  }, [hires, proofs, transactions, publishedAgents]);
+  }, [publishedAgents, scopedHires, scopedProofs, scopedTransactions]);
 
-  const spendChart = useMemo(() => buildDailyTrend(transactions.map((item) => ({ createdAt: item.createdAt, amount: item.amount }))), [transactions]);
-  const hireChart = useMemo(() => buildDailyTrend(hires.map((item) => ({ createdAt: item.createdAt, amount: 1 }))), [hires]);
-  const proofChart = useMemo(() => buildDailyTrend(proofs.map((item) => ({ createdAt: item.completedAt, amount: 1 }))), [proofs]);
+  const spendChart = useMemo(
+    () => buildDailyTrend(scopedTransactions.map((item) => ({ createdAt: item.createdAt, amount: item.amount }))),
+    [scopedTransactions],
+  );
+  const hireChart = useMemo(
+    () => buildDailyTrend(scopedHires.map((item) => ({ createdAt: item.createdAt, amount: 1 }))),
+    [scopedHires],
+  );
+  const proofChart = useMemo(
+    () => buildDailyTrend(scopedProofs.map((item) => ({ createdAt: item.completedAt, amount: 1 }))),
+    [scopedProofs],
+  );
 
   return (
     <div className="space-y-6">
@@ -178,7 +214,7 @@ export default function UsageHistoryPanel() {
             <CardDescription>Recent confirmations across hires, payments, and proofs.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {buildTimeline(transactions, hires, proofs).slice(0, 6).map((item) => (
+            {buildTimeline(scopedTransactions, scopedHires, scopedProofs).slice(0, 6).map((item) => (
               <div key={item.key} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-white">{item.title}</p>

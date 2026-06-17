@@ -41,6 +41,7 @@ export default function AgentMarketplaceBrowser({
     const search = query.trim().toLowerCase();
 
     return [...agents]
+      .filter((agent) => agent.status !== "unlisted")
       .filter((agent) => {
         const matchesQuery =
           !search ||

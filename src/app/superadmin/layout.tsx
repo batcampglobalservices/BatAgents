@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BadgeCheck, Bot, Flag, LayoutDashboard, ReceiptText, Users } from "lucide-react";
 import DashboardShell from "@/components/dashboard/dashboard-shell";
 import type { DashboardNavItem } from "@/components/dashboard/dashboard-sidebar";
-import { getMockUserByRole } from "@/data/users";
+import { getWorkspaceUser } from "@/lib/db/profiles";
 
 const navItems = [
   { href: "/superadmin", label: "Overview", description: "Platform command center and proof status.", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -13,12 +13,14 @@ const navItems = [
   { href: "/superadmin/reports", label: "Reports", description: "Track flagged agents and moderation queue.", icon: <Flag className="h-4 w-4" /> },
 ] satisfies DashboardNavItem[];
 
-export default function SuperadminLayout({ children }: { children: ReactNode }) {
+export default async function SuperadminLayout({ children }: { children: ReactNode }) {
+  const user = await getWorkspaceUser("superadmin");
+
   return (
     <DashboardShell
       title="Superadmin console"
       description="Oversee users, agents, transactions, 0G proof receipts, and reports from a single operational workspace."
-      user={getMockUserByRole("superadmin")}
+      user={user}
       roleLabel="Superadmin"
       navItems={navItems}
       accentLabel="0G operations console"

@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import { ArrowUpRight, FileCheck2, PencilLine } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { ArrowUpRight, CircleOff, MessageSquareText, Sparkles } from "lucide-react";
+import { useAccount, useProvider } from "@starknet-react/core";
+import { toast } from "sonner";
 import type { Agent } from "@/types/agent";
+import { isContractConfigured } from "@/lib/contracts";
+import { registerAgentOnchain } from "@/lib/starknet-contract";
+import { waitForStarknetTransaction } from "@/lib/starknet-payments";
 import {
   getStoredCreatedAgentsSnapshot,
   mergePublishedAgents,
   subscribeCreatedAgentsStore,
 } from "@/lib/created-agents";
+import { updateAgentListingStatus, updateAgentOnchainRegistration } from "@/lib/db/agents";
 
 type AgentTableProps = {
   agents: Agent[];
@@ -16,6 +22,9 @@ type AgentTableProps = {
 
 export default function AgentTable({ agents }: AgentTableProps) {
   useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
+  const [busyAgentKey, setBusyAgentKey] = useState<{ id: string; action: "mint" | "listing" } | null>(null);
+  const { account, isConnected } = useAccount();
+  const provider = useProvider();
 
   const publishedAgents = mergePublishedAgents(agents);
 
@@ -72,32 +81,115 @@ export default function AgentTable({ agents }: AgentTableProps) {
               )}
             </div>
             <div>
-              <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-                Active
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  agent.status === "unlisted"
+                    ? "bg-amber-400/10 text-amber-100"
+                    : "bg-emerald-400/10 text-emerald-200"
+                }`}
+              >
+                {agent.status === "unlisted" ? "Unlisted" : "Listed"}
               </span>
+              <p className="mt-2 text-[11px] uppercase tracking-[0.24em] text-slate-500">
+                {agent.onchainRegistrationTxHash ? "Minted" : "Unminted"}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-white/20 hover:bg-white/10"
-              >
-                <PencilLine className="h-3.5 w-3.5" />
-                Edit
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15"
-              >
-                <FileCheck2 className="h-3.5 w-3.5" />
-                Proof
-              </button>
               <Link
-                href={`/agents/${agent.slug}`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-cyan-300 transition hover:text-cyan-200"
+                href={`/create-agent?edit=${agent.slug}`}
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-cyan-400/30 hover:bg-white/10"
               >
-                Open
+                Edit
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
+              <Link
+                href={`/agents/${agent.slug}/chat`}
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15"
+              >
+                <MessageSquareText className="h-3.5 w-3.5" />
+                Chat
+              </Link>
+              <button
+                type="button"
+                disabled={busyAgentKey?.id === agent.id || Boolean(agent.onchainRegistrationTxHash)}
+                onClick={async () => {
+                  if (!isConnected || !account) {
+                    toast.error("Connect a Starknet wallet to mint this agent.");
+                    return;
+                  }
+
+                  if (!isContractConfigured()) {
+                    toast.error("BatAgents contract address is not configured.");
+                    return;
+                  }
+
+                  const loadingToast = toast.loading("Preparing mint transaction...");
+                  setBusyAgentKey({ id: agent.id, action: "mint" });
+
+                  try {
+                    const txHash = await registerAgentOnchain({
+                      account,
+                      agentSlug: agent.slug,
+                      price: agent.price,
+                    });
+
+                    toast.loading("Waiting for Starknet confirmation...", {
+                      id: loadingToast,
+                    });
+
+                    const status = await waitForStarknetTransaction(provider.provider, txHash);
+
+                    if (status !== "accepted") {
+                      throw new Error(
+                        status === "rejected"
+                          ? "Mint transaction was rejected."
+                          : "Mint confirmation timed out on Starknet Sepolia.",
+                      );
+                    }
+
+                    await updateAgentOnchainRegistration(agent.id, txHash);
+                    toast.success("Agent minted on Starknet Sepolia.", { id: loadingToast });
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error ? error.message : "Minting failed.",
+                      { id: loadingToast },
+                    );
+                  } finally {
+                    setBusyAgentKey(null);
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {busyAgentKey?.id === agent.id && busyAgentKey.action === "mint"
+                  ? "Minting..."
+                  : agent.onchainRegistrationTxHash
+                    ? "Minted"
+                    : "Mint agent"}
+              </button>
+              <button
+                type="button"
+                disabled={busyAgentKey?.id === agent.id}
+                onClick={async () => {
+                  setBusyAgentKey({ id: agent.id, action: "listing" });
+                  try {
+                    await updateAgentListingStatus(
+                      agent.id,
+                      agent.status === "unlisted" ? "listed" : "unlisted",
+                    );
+                  } finally {
+                    setBusyAgentKey(null);
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CircleOff className="h-3.5 w-3.5" />
+                {busyAgentKey?.id === agent.id && busyAgentKey.action === "listing"
+                  ? "Updating..."
+                  : agent.status === "unlisted"
+                    ? "List"
+                    : "Unlist"}
+              </button>
             </div>
           </div>
         ))}

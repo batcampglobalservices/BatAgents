@@ -9,6 +9,7 @@ import { getDashboardPathForRole } from "@/lib/demo-auth";
 import { getSupabaseBrowserClient, getSupabaseConfirmUrl, getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/user";
 import WalletConnectButton from "@/components/wallet/wallet-connect-button";
+import LogoMark from "@/components/brand/logo-mark";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function SignupPage() {
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
       <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_20px_80px_rgba(3,7,18,0.35)] backdrop-blur sm:p-8">
+        <LogoMark />
         <p className="text-xs uppercase tracking-[0.35em] text-cyan-300">Signup</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
           Create a Supabase account.

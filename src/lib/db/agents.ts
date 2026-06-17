@@ -36,6 +36,7 @@ function rowToAgent(row: {
   price: number | null;
   currency: string;
   creator_wallet: string | null;
+  status: string | null;
   zero_g_root_hash: string | null;
   zero_g_tx_hash: string | null;
   zero_g_url: string | null;
@@ -63,6 +64,10 @@ function rowToAgent(row: {
     systemPrompt: row.system_prompt ?? "",
     sampleQuestions: [],
     createdAt: row.created_at ?? new Date().toISOString(),
+    status:
+      row.status === "draft" || row.status === "unlisted" || row.status === "listed"
+        ? row.status
+        : "listed",
     zeroGProof: row.zero_g_root_hash
       ? {
           rootHash: row.zero_g_root_hash,
@@ -109,10 +114,28 @@ export async function getAgents() {
   return mergeUniqueAgents((data ?? []).map(rowToAgent));
 }
 
-export async function getAgentBySlug(slug: string) {
+export async function getAgentBySlug(
+  slug: string,
+  options?: { includeUnlisted?: boolean },
+) {
   const normalized = slug.trim().toLowerCase();
   const publishedAgents = await getAgents();
-  return publishedAgents.find((agent) => agent.slug === normalized || agent.id === normalized);
+  const match = publishedAgents.find((agent) => agent.slug === normalized || agent.id === normalized);
+
+  if (!match) {
+    return undefined;
+  }
+
+  if (options?.includeUnlisted) {
+    return match;
+  }
+
+  return match.status === "unlisted" ? undefined : match;
+}
+
+export async function getListedAgents() {
+  const agents = await getAgents();
+  return agents.filter((agent) => agent.status !== "unlisted");
 }
 
 export async function createAgentRecord(agent: CreatedAgentRecord) {
@@ -130,7 +153,7 @@ export async function createAgentRecord(agent: CreatedAgentRecord) {
       price: agent.price,
       currency: agent.currency,
       creator_wallet: agent.creatorWallet,
-      status: "published",
+      status: agent.status ?? "listed",
       zero_g_root_hash: agent.zeroGProof?.rootHash ?? null,
       zero_g_tx_hash: agent.zeroGProof?.txHash ?? null,
       zero_g_url: agent.zeroGProof?.url ?? null,
@@ -198,5 +221,56 @@ export async function updateAgentOnchainRegistration(
     ...agent,
     onchainAgentId: agent.onchainAgentId ?? agentIdToFelt(agentId),
     onchainRegistrationTxHash: txHash,
+  }));
+}
+
+export async function updateAgentListingStatus(
+  agentId: string,
+  status: "listed" | "unlisted",
+) {
+  const client = await getSupabaseClient();
+
+  if (client) {
+    await client
+      .from("agents")
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", agentId);
+  }
+
+  updateStoredCreatedAgent(agentId, (agent) => ({
+    ...agent,
+    status,
+  }));
+}
+
+export async function updateAgentRecord(
+  agentId: string,
+  updates: Partial<Pick<Agent, "name" | "category" | "description" | "service" | "price" | "currency" | "systemPrompt" | "status">>,
+) {
+  const client = await getSupabaseClient();
+
+  if (client) {
+    await client
+      .from("agents")
+      .update({
+        name: updates.name,
+        category: updates.category,
+        description: updates.description,
+        service: updates.service,
+        price: updates.price,
+        currency: updates.currency,
+        system_prompt: updates.systemPrompt,
+        status: updates.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", agentId);
+  }
+
+  updateStoredCreatedAgent(agentId, (agent) => ({
+    ...agent,
+    ...updates,
   }));
 }

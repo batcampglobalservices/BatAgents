@@ -16,7 +16,7 @@ type PublishedAgentsGridProps = {
 export default function PublishedAgentsGrid({ staticAgents }: PublishedAgentsGridProps) {
   useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
 
-  const agents = mergePublishedAgents(staticAgents);
+  const agents = mergePublishedAgents(staticAgents).filter((agent) => agent.status !== "unlisted");
 
   return (
     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">

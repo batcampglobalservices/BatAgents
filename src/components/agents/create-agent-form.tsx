@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CheckCircle2, Sparkles } from "lucide-react";
-import type { AgentCategory } from "@/types/agent";
+import type { Agent, AgentCategory } from "@/types/agent";
 import { agentCategories } from "@/data/agents";
 import { useAccount, useProvider } from "@starknet-react/core";
 import { isContractConfigured } from "@/lib/contracts";
@@ -15,6 +15,7 @@ import PageHeader from "@/components/ui/page-header";
 import StatusBadge from "@/components/ui/status-badge";
 import {
   createAgentRecord,
+  updateAgentRecord,
   updateAgent0GProof,
   updateAgentOnchainRegistration,
 } from "@/lib/db/agents";
@@ -27,12 +28,14 @@ const initialState = {
   currency: "STRK" as "STRK" | "ETH",
   description: "",
   prompt: "",
+  status: "listed" as "listed" | "unlisted",
 };
 
-export default function CreateAgentForm() {
-  const [form, setForm] = useState(initialState);
+export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent | null }) {
+  const [form, setForm] = useState(() => initialFormState(initialAgent));
   const [submitted, setSubmitted] = useState(false);
   const [generatingProfile, setGeneratingProfile] = useState(false);
+  const [publishingDraft, setPublishingDraft] = useState(false);
   const [registrationState, setRegistrationState] = useState<
     "idle" | "connecting" | "submitting" | "waiting" | "success" | "failed"
   >("idle");
@@ -43,6 +46,11 @@ export default function CreateAgentForm() {
   const { account, address, isConnected } = useAccount();
   const provider = useProvider();
 
+  useEffect(() => {
+    setForm(initialFormState(initialAgent));
+  }, [initialAgent]);
+
+  const isEditing = Boolean(initialAgent);
   const agentSlug = slugify(form.name || "draft-agent");
   const creatorLabel = "Creator";
 
@@ -97,16 +105,18 @@ export default function CreateAgentForm() {
       return;
     }
 
+    setPublishingDraft(true);
     const now = new Date().toISOString();
     const createdAgent = {
-      id: agentSlug,
-      slug: agentSlug,
+      id: initialAgent?.id ?? agentSlug,
+      slug: initialAgent?.slug ?? agentSlug,
       name: form.name || "New Agent",
       category: form.category,
       description: form.description || "AI-generated agent draft.",
       service: form.service || "Agent service",
       price: Number(form.price || "0"),
       currency: form.currency,
+      status: form.status as "listed" | "unlisted",
       rating: 5,
       completedJobs: 0,
       creator: creatorLabel,
@@ -126,7 +136,7 @@ export default function CreateAgentForm() {
               "Can you give me a quick task plan?",
             ],
       createdAt: now,
-      publishedAt: now,
+      publishedAt: initialAgent?.publishedAt ?? now,
       zeroGProof: publishedProof ?? undefined,
     };
 
@@ -160,19 +170,34 @@ export default function CreateAgentForm() {
       }
 
       setPublishedProof(payload.proof);
-      await createAgentRecord({
-        ...createdAgent,
-        zeroGProof: payload.proof,
-      });
+      if (isEditing) {
+        await updateAgentRecord(createdAgent.id, {
+          name: createdAgent.name,
+          category: createdAgent.category,
+          description: createdAgent.description,
+          service: createdAgent.service,
+          price: createdAgent.price,
+          currency: createdAgent.currency,
+          systemPrompt: createdAgent.systemPrompt,
+          status: createdAgent.status,
+        });
+      } else {
+        await createAgentRecord({
+          ...createdAgent,
+          zeroGProof: payload.proof,
+        });
+      }
       await updateAgent0GProof(createdAgent.id, payload.proof);
     } catch (error) {
       setRegistrationError(
         error instanceof Error ? error.message : "Unable to publish agent.",
       );
+      setPublishingDraft(false);
       return;
     }
 
     setSubmitted(true);
+    setPublishingDraft(false);
   }
 
   return (
@@ -181,13 +206,13 @@ export default function CreateAgentForm() {
         className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-6"
         onSubmit={(event) => {
           event.preventDefault();
-          setSubmitted(true);
+          void publishDraft();
         }}
       >
         <div className="flex items-start justify-between gap-4">
           <PageHeader
             eyebrow="Creator workspace"
-            title="Create an AI agent in four guided steps."
+            title={isEditing ? "Edit and republish the agent." : "Create an AI agent in four guided steps."}
             description="Write the agent, let Groq draft the profile, store metadata on 0G, then register the agent on Starknet Sepolia."
           />
           <StatusBadge tone="cyan">Creator</StatusBadge>
@@ -277,6 +302,21 @@ export default function CreateAgentForm() {
               </select>
             </div>
           </Field>
+          <Field label="Listing status">
+            <select
+              value={form.status}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  status: event.target.value as "listed" | "unlisted",
+                }))
+              }
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+            >
+              <option value="listed">Listed</option>
+              <option value="unlisted">Unlisted</option>
+            </select>
+          </Field>
         </div>
 
         <div className="mt-4 grid gap-4">
@@ -315,12 +355,12 @@ export default function CreateAgentForm() {
             {generatingProfile ? "Generating..." : "Generate with AI"}
           </button>
           <button
-            type="button"
-            onClick={publishDraft}
+            type="submit"
+            disabled={publishingDraft}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
           >
             <CheckCircle2 className="h-4 w-4" />
-            Publish agent
+            {publishingDraft ? "Saving..." : isEditing ? "Save changes" : "Publish agent"}
           </button>
         </div>
 
@@ -508,4 +548,21 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function initialFormState(initialAgent?: Agent | null) {
+  if (!initialAgent) {
+    return initialState;
+  }
+
+  return {
+    name: initialAgent.name,
+    category: initialAgent.category,
+    service: initialAgent.service,
+    price: String(initialAgent.price),
+    currency: initialAgent.currency,
+    description: initialAgent.description,
+    prompt: initialAgent.systemPrompt,
+    status: initialAgent.status === "unlisted" ? "unlisted" : "listed",
+  };
 }

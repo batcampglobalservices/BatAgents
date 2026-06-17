@@ -85,3 +85,48 @@ export function profileToAppUser(profile: {
 export function getFallbackProfile(role: UserRole) {
   return getMockUserByRole(role);
 }
+
+export async function getWorkspaceUser(fallbackRole: UserRole) {
+  const client = await getSupabaseClient();
+
+  if (!client) {
+    return getFallbackProfile(fallbackRole);
+  }
+
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+
+  if (!user) {
+    return getFallbackProfile(fallbackRole);
+  }
+
+  const email = user.email ?? "";
+  const displayName =
+    user.user_metadata?.full_name ??
+    user.user_metadata?.display_name ??
+    email ??
+    "BatAgents User";
+  const role = (user.user_metadata?.role as UserRole | undefined) ?? fallbackRole;
+  const walletAddress = user.user_metadata?.wallet_address as string | undefined;
+
+  const { data: existingProfile } = await client
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (existingProfile) {
+    return profileToAppUser(existingProfile);
+  }
+
+  const profile = await upsertProfile({
+    id: user.id,
+    email,
+    displayName,
+    walletAddress,
+    role,
+  });
+
+  return profileToAppUser(profile);
+}

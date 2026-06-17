@@ -9,6 +9,7 @@ import { getDashboardPathForRole } from "@/lib/demo-auth";
 import type { UserRole } from "@/types/user";
 import { getSupabaseBrowserClient, getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
 import WalletConnectButton from "@/components/wallet/wallet-connect-button";
+import LogoMark from "@/components/brand/logo-mark";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function LoginPage() {
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
       <div className="flex flex-col justify-center">
+        <LogoMark />
         <span className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-medium text-cyan-100">
           <Sparkles className="h-4 w-4" />
           Supabase auth enabled for live sign-in.

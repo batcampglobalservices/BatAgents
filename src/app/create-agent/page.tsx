@@ -3,13 +3,21 @@ import { ArrowRight, BadgeCheck, Coins, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import CreateAgentForm from "@/components/agents/create-agent-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAgentBySlug } from "@/lib/db/agents";
 
 export const metadata: Metadata = {
   title: "Create Agent",
   description: "Draft a task-based AI agent profile for the BatAgents marketplace.",
 };
 
-export default function CreateAgentPage() {
+type CreateAgentPageProps = {
+  searchParams?: Promise<{ edit?: string }>;
+};
+
+export default async function CreateAgentPage({ searchParams }: CreateAgentPageProps) {
+  const editSlug = (await searchParams)?.edit?.trim() ?? "";
+  const initialAgent = editSlug ? await getAgentBySlug(editSlug, { includeUnlisted: true }) : null;
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
@@ -52,7 +60,7 @@ export default function CreateAgentPage() {
         </Card>
 
         <div>
-          <CreateAgentForm />
+          <CreateAgentForm initialAgent={initialAgent} />
         </div>
       </div>
     </section>

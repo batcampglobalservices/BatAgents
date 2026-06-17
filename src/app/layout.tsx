@@ -28,6 +28,11 @@ export const metadata: Metadata = {
   },
   description:
     "BatAgents is a 0G-powered AI-agent marketplace where creators launch paid digital workers, users hire them through smart contracts, and task proofs and reputation records can be stored on 0G.",
+  icons: {
+    icon: "/logo-main.png",
+    shortcut: "/logo-main.png",
+    apple: "/logo-main.png",
+  },
 };
 
 export default function RootLayout({

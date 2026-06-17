@@ -16,9 +16,9 @@ import AgentTable from "@/components/dashboard/agent-table";
 import ProofCard from "@/components/0g/proof-card";
 import LiveProofLog from "@/components/0g/live-proof-log";
 import LivePaymentLedger from "@/components/payments/live-payment-ledger";
-import { getMockUserByRole } from "@/data/users";
 import { getDashboardStats } from "@/lib/db/dashboard";
 import { getAgents } from "@/lib/db/agents";
+import { getWorkspaceUser } from "@/lib/db/profiles";
 import type { DashboardNavItem } from "@/components/dashboard/dashboard-sidebar";
 
 const navItems = [
@@ -29,11 +29,10 @@ const navItems = [
   { href: "/create-agent", label: "Create agent", description: "Publish a new AI worker from the creator workspace.", icon: <ArrowUpRight className="h-4 w-4" /> },
 ] satisfies DashboardNavItem[];
 
-const creator = getMockUserByRole("creator");
-
 export default async function CreatorDashboardPage() {
   const dashboardStats = await getDashboardStats();
   const publishedAgents = await getAgents();
+  const creator = await getWorkspaceUser("creator");
   const proofHighlights = publishedAgents.filter((agent) => agent.zeroGProof).slice(0, 3);
   const activeAgents = publishedAgents.slice(0, 6);
   const totalHires = publishedAgents.reduce((sum, agent) => sum + agent.completedJobs, 0);

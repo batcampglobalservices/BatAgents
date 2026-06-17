@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, LogIn, Menu, Sparkles } from "lucide-react";
+import { ArrowRight, LogIn, Menu } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import { getDashboardPathForRole, getRoleLabel } from "@/lib/demo-auth";
 import { getSupabaseSetupMessage, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -12,6 +12,7 @@ import type { AppUser, UserRole } from "@/types/user";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import LogoMark from "@/components/brand/logo-mark";
 
 const links = [
   { href: "/marketplace", label: "Marketplace" },
@@ -105,20 +106,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/75 backdrop-blur-2xl">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="flex items-center gap-3 text-sm font-semibold tracking-tight text-white"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-emerald-400 to-violet-500 text-slate-950 shadow-lg shadow-cyan-500/20">
-            <Sparkles className="h-5 w-5" />
-          </span>
-          <span>
-            <span className="block text-base">BatAgents</span>
-            <span className="block text-xs font-normal text-slate-400">
-              0G-powered AI marketplace
-            </span>
-          </span>
-        </Link>
+        <LogoMark />
 
         <nav className="hidden items-center gap-2 md:flex">
           {links.map((link) => (
@@ -175,7 +163,9 @@ export default function Navbar() {
               </SheetTrigger>
               <SheetContent side="right" className="border-white/10 bg-slate-950 text-white">
                 <SheetHeader>
-                  <SheetTitle className="text-left text-white">BatAgents</SheetTitle>
+                  <SheetTitle className="text-left text-white">
+                    <LogoMark compact />
+                  </SheetTitle>
                 </SheetHeader>
                 <div className="mt-6 grid gap-3">
                   {links.map((link) => (

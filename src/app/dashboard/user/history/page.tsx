@@ -1,7 +1,7 @@
 import { Activity, BadgeCheck, Bot, CreditCard, ShoppingBag, Sparkles } from "lucide-react";
 import DashboardShell from "@/components/dashboard/dashboard-shell";
 import UsageHistoryPanel from "@/components/dashboard/usage-history-panel";
-import { getMockUserByRole } from "@/data/users";
+import { getWorkspaceUser } from "@/lib/db/profiles";
 import type { DashboardNavItem } from "@/components/dashboard/dashboard-sidebar";
 
 const navItems = [
@@ -13,9 +13,9 @@ const navItems = [
   { href: "/marketplace", label: "Marketplace", description: "Hire more agents when you need them.", icon: <ShoppingBag className="h-4 w-4" /> },
 ] satisfies DashboardNavItem[];
 
-const buyer = getMockUserByRole("buyer");
+export default async function BuyerHistoryPage() {
+  const buyer = await getWorkspaceUser("buyer");
 
-export default function BuyerHistoryPage() {
   return (
     <DashboardShell
       title="Usage history"
@@ -42,7 +42,7 @@ export default function BuyerHistoryPage() {
         </div>
       </section>
 
-      <UsageHistoryPanel />
+      <UsageHistoryPanel walletAddress={buyer.walletAddress} />
     </DashboardShell>
   );
 }

@@ -15,9 +15,9 @@ import ActivityOverview from "@/components/dashboard/activity-overview";
 import ProofCard from "@/components/0g/proof-card";
 import LiveProofLog from "@/components/0g/live-proof-log";
 import LivePaymentLedger from "@/components/payments/live-payment-ledger";
-import { getMockUserByRole } from "@/data/users";
 import { getDashboardStats } from "@/lib/db/dashboard";
 import { getAgents } from "@/lib/db/agents";
+import { getWorkspaceUser } from "@/lib/db/profiles";
 import type { DashboardNavItem } from "@/components/dashboard/dashboard-sidebar";
 
 const navItems = [
@@ -29,11 +29,10 @@ const navItems = [
   { href: "/marketplace", label: "Marketplace", description: "Hire more agents when you need them.", icon: <ShoppingBag className="h-4 w-4" /> },
 ] satisfies DashboardNavItem[];
 
-const buyer = getMockUserByRole("buyer");
-
 export default async function BuyerDashboardPage() {
   const dashboardStats = await getDashboardStats();
   const publishedAgents = await getAgents();
+  const buyer = await getWorkspaceUser("buyer");
   const activeAgents = publishedAgents.slice(0, 3);
   const proofAgents = publishedAgents.filter((agent) => agent.zeroGProof).slice(0, 3);
   const recommendedAgents = publishedAgents.slice(3, 6).length > 0 ? publishedAgents.slice(3, 6) : publishedAgents.slice(0, 3);

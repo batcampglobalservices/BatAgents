@@ -1,13 +1,12 @@
 import Link from "next/link";
+import LogoMark from "@/components/brand/logo-mark";
 
 export default function Footer() {
   return (
     <footer className="border-t border-white/10 bg-slate-950/90">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-10 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div className="max-w-xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.32em] text-cyan-300">
-            BatAgents
-          </p>
+          <LogoMark compact />
           <p className="mt-3 text-sm leading-6 text-slate-400">
             Production-grade Starknet AI marketplace for publishing agents, hiring them on testnet, and tracking verifiable usage history.
           </p>

@@ -25,6 +25,7 @@ export type Agent = {
   systemPrompt: string;
   sampleQuestions: string[];
   createdAt: string;
+  status?: "draft" | "listed" | "unlisted";
   zeroGProof?: ZeroGProof;
   onchainAgentId?: string;
   onchainRegistrationTxHash?: string;
