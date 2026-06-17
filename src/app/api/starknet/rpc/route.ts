@@ -1,10 +1,35 @@
 import { NextResponse } from "next/server";
 
-const DEFAULT_UPSTREAM_RPC_URL = "https://starknet-sepolia.public.blastapi.io/";
-const UPSTREAM_RPC_URL =
-  process.env.STARKNET_RPC_UPSTREAM_URL?.trim() || DEFAULT_UPSTREAM_RPC_URL;
+function getUpstreamRpcUrl() {
+  const configuredUrl = process.env.STARKNET_RPC_UPSTREAM_URL?.trim();
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const alchemyKey = process.env.ALCHEMY_STARKNET_API_KEY?.trim();
+  if (alchemyKey) {
+    return `https://starknet-sepolia.g.alchemy.com/v2/${alchemyKey}`;
+  }
+
+  return "";
+}
 
 async function proxyRpc(request: Request) {
+  const upstreamRpcUrl = getUpstreamRpcUrl();
+
+  if (!upstreamRpcUrl) {
+    return NextResponse.json(
+      {
+        error: {
+          code: -32000,
+          message:
+            "Starknet RPC upstream is not configured. Set STARKNET_RPC_UPSTREAM_URL or ALCHEMY_STARKNET_API_KEY.",
+        },
+      },
+      { status: 503 },
+    );
+  }
+
   let body: string;
 
   try {
@@ -16,7 +41,7 @@ async function proxyRpc(request: Request) {
     );
   }
 
-  const upstreamResponse = await fetch(UPSTREAM_RPC_URL, {
+  const upstreamResponse = await fetch(upstreamRpcUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
