@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CheckCircle2, Sparkles } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
+import { CheckCircle2, Sparkles, Wallet } from "lucide-react";
+import { useAccount, useProvider } from "@starknet-react/core";
 import type { Agent, AgentCategory } from "@/types/agent";
 import { agentCategories } from "@/data/agents";
 import { uploadAgentMetadataTo0G } from "@/lib/0g";
@@ -13,6 +13,19 @@ import {
   updateAgent0GProof,
   updateAgentRecord,
 } from "@/lib/db/agents";
+import WalletConnectButton from "@/components/wallet/wallet-connect-button";
+import { DEFAULT_PAYMENT_TOKEN } from "@/lib/starknet-config";
+import { isPaymentTokenConfigured } from "@/lib/contracts";
+import { createTransactionRecord } from "@/lib/db/hires";
+import {
+  buildPaymentCall,
+  getPaymentReceiverAddress,
+  isValidStarknetAddress,
+  parseTokenAmount,
+  shortenAddress,
+  waitForStarknetTransaction,
+} from "@/lib/starknet-payments";
+import { getPaymentTokenBalance } from "@/lib/starknet-token";
 
 const defaultState = {
   name: "",
@@ -28,14 +41,26 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
   const [form, setForm] = useState(() => initialFormState(initialAgent));
   const [generatingProfile, setGeneratingProfile] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<
+    "idle" | "paying" | "verifying" | "verified" | "failed"
+  >("idle");
+  const [paymentTxHash, setPaymentTxHash] = useState<string | null>(null);
   const [publishedProof, setPublishedProof] = useState<ZeroGProof | null>(null);
   const [publishedAgentId, setPublishedAgentId] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { address, isConnected } = useAccount();
+  const { account, address, isConnected } = useAccount();
+  const provider = useProvider();
 
   const isEditing = Boolean(initialAgent);
   const agentSlug = slugify(form.name || "draft-agent");
+  const creationFee = Number(process.env.NEXT_PUBLIC_CREATE_AGENT_FEE?.trim() || "0");
+  const paymentRequired = creationFee > 0;
+  const receiverAddress = getPaymentReceiverAddress();
+  const receiverAddressValid = isValidStarknetAddress(receiverAddress);
+  const feeTokenSymbol = DEFAULT_PAYMENT_TOKEN.symbol;
+  const feeAmount = Number.isFinite(creationFee) && creationFee > 0 ? creationFee : 0;
+  const paymentVerified = paymentStatus === "verified";
 
   async function generateProfile() {
     setGeneratingProfile(true);
@@ -80,6 +105,90 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
     }
   }
 
+  async function verifyAndPayCreationFee() {
+    if (!paymentRequired) {
+      setPaymentStatus("verified");
+      return null;
+    }
+
+    if (paymentVerified && paymentTxHash) {
+      return paymentTxHash;
+    }
+
+    if (!isConnected || !account || !address) {
+      throw new Error("Connect your Starknet wallet before paying the publish fee.");
+    }
+
+    if (!isPaymentTokenConfigured()) {
+      throw new Error("Payment token address is not configured.");
+    }
+
+    if (!receiverAddressValid || !receiverAddress) {
+      throw new Error("Creator payment receiver is not configured.");
+    }
+
+    setPaymentStatus("paying");
+
+    const feeAmountBaseUnits = parseTokenAmount(feeAmount, DEFAULT_PAYMENT_TOKEN.decimals);
+
+    try {
+      const balance = await getPaymentTokenBalance(provider.provider, address);
+
+      if (balance < feeAmountBaseUnits) {
+        throw new Error(
+          `Insufficient ${feeTokenSymbol} balance for the publish fee. Need ${feeAmount} ${feeTokenSymbol}.`,
+        );
+      }
+
+      const loadingMessage = `Sending ${feeAmount} ${feeTokenSymbol} publish fee...`;
+      setSuccess(loadingMessage);
+
+      const tx = await account.execute([
+        buildPaymentCall(
+          DEFAULT_PAYMENT_TOKEN.address,
+          receiverAddress,
+          feeAmount,
+          DEFAULT_PAYMENT_TOKEN.decimals,
+        ),
+      ]);
+
+      setPaymentTxHash(tx.transaction_hash);
+      setPaymentStatus("verifying");
+      setSuccess(`Publish fee submitted. Verifying payment on Starknet...`);
+
+      const status = await waitForStarknetTransaction(provider.provider, tx.transaction_hash);
+
+      if (status !== "accepted") {
+        throw new Error(
+          status === "rejected"
+            ? "Publish fee transaction was rejected."
+            : "Publish fee confirmation timed out on Starknet.",
+        );
+      }
+
+      await createTransactionRecord({
+        id: `create-agent-fee-${tx.transaction_hash}`,
+        agentId: initialAgent?.id ?? agentSlug,
+        agentName: form.name || "New Agent",
+        buyerWallet: address,
+        creatorWallet: receiverAddress,
+        amount: feeAmount,
+        currency: feeTokenSymbol,
+        txHash: tx.transaction_hash,
+        status: "successful",
+        network: "starknet-sepolia",
+        source: "Create agent fee",
+        createdAt: new Date().toISOString(),
+      });
+
+      setPaymentStatus("verified");
+      return tx.transaction_hash;
+    } catch (err) {
+      setPaymentStatus("failed");
+      throw err;
+    }
+  }
+
   async function publishDraft() {
     if (!isConnected || !address) {
       setError("Connect a Starknet wallet before publishing an agent.");
@@ -91,42 +200,47 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
     setSuccess(null);
 
     const now = new Date().toISOString();
-    const createdAgent = {
-      id: initialAgent?.id ?? agentSlug,
-      slug: initialAgent?.slug ?? agentSlug,
-      name: form.name || "New Agent",
-      category: form.category,
-      description: form.description || "AI-generated agent draft.",
-      service: form.service || "Agent service",
-      price: Number(form.price || "0"),
-      currency: form.currency,
-      status: (initialAgent?.status === "unlisted" ? "unlisted" : "listed") as
-        | "listed"
-        | "unlisted",
-      rating: initialAgent?.rating ?? 5,
-      completedJobs: initialAgent?.completedJobs ?? 0,
-      creator: initialAgent?.creator ?? "Creator",
-      creatorWallet: address,
-      systemPrompt:
-        form.prompt ||
-        "You are a focused BatAgents worker. Be practical, direct, and useful.",
-      sampleQuestions:
-        form.prompt.trim().length > 0
-          ? [
-              "What can you help with first?",
-              "Can you give me a quick task plan?",
-              "What should I ask next?",
-            ]
-          : [
-              "What can you help with first?",
-              "Can you give me a quick task plan?",
-            ],
-      createdAt: initialAgent?.createdAt ?? now,
-      publishedAt: initialAgent?.publishedAt ?? now,
-      zeroGProof: publishedProof ?? undefined,
-    };
-
     try {
+      const feeTxHash = await verifyAndPayCreationFee();
+      if (feeTxHash && !paymentTxHash) {
+        setPaymentTxHash(feeTxHash);
+      }
+
+      const createdAgent = {
+        id: initialAgent?.id ?? agentSlug,
+        slug: initialAgent?.slug ?? agentSlug,
+        name: form.name || "New Agent",
+        category: form.category,
+        description: form.description || "AI-generated agent draft.",
+        service: form.service || "Agent service",
+        price: Number(form.price || "0"),
+        currency: form.currency,
+        status: (initialAgent?.status === "unlisted" ? "unlisted" : "listed") as
+          | "listed"
+          | "unlisted",
+        rating: initialAgent?.rating ?? 5,
+        completedJobs: initialAgent?.completedJobs ?? 0,
+        creator: initialAgent?.creator ?? "Creator",
+        creatorWallet: address,
+        systemPrompt:
+          form.prompt ||
+          "You are a focused BatAgents worker. Be practical, direct, and useful.",
+        sampleQuestions:
+          form.prompt.trim().length > 0
+            ? [
+                "What can you help with first?",
+                "Can you give me a quick task plan?",
+                "What should I ask next?",
+              ]
+            : [
+                "What can you help with first?",
+                "Can you give me a quick task plan?",
+              ],
+        createdAt: initialAgent?.createdAt ?? now,
+        publishedAt: initialAgent?.publishedAt ?? now,
+        zeroGProof: publishedProof ?? undefined,
+      };
+
       const proof = await uploadAgentMetadataTo0G({
         agentId: createdAgent.id,
         agentName: createdAgent.name,
@@ -161,7 +275,12 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
 
       await updateAgent0GProof(createdAgent.id, proof);
       setPublishedAgentId(createdAgent.id);
-      setSuccess("Agent saved. Buyer feedback and chat history will refine future responses.");
+      const verifiedPaymentTxHash = feeTxHash ?? paymentTxHash;
+      setSuccess(
+        paymentRequired && verifiedPaymentTxHash
+          ? "Payment verified and agent saved. Buyer feedback and chat history will refine future responses."
+          : "Agent saved. Buyer feedback and chat history will refine future responses.",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to publish agent.");
     } finally {
@@ -188,6 +307,57 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
           </p>
         </div>
       </div>
+
+      <div className="mt-6 border border-white/10 bg-slate-950/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Wallet state</p>
+            <p className="mt-1 text-sm text-slate-300">
+              {isConnected
+                ? "Wallet connected. Your creator profile will be saved against this address."
+                : "Connect your Starknet wallet before publishing an agent."}
+            </p>
+          </div>
+          {isConnected ? (
+            <div className="inline-flex items-center gap-2 border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-medium text-emerald-100">
+              <Wallet className="h-4 w-4" />
+              Connected
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-4">
+          <WalletConnectButton />
+        </div>
+      </div>
+
+      {paymentRequired ? (
+        <div className="mt-4 border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-cyan-200">Publish fee</p>
+              <p className="mt-1">
+                Pay {feeAmount} {feeTokenSymbol} to{" "}
+                <span className="font-mono text-white">{shortenAddress(receiverAddress)}</span>{" "}
+                before publishing this agent.
+              </p>
+            </div>
+            <div className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-200">
+              {paymentStatus === "verified"
+                ? "Payment verified"
+                : paymentStatus === "paying"
+                  ? "Sending payment"
+                  : paymentStatus === "verifying"
+                    ? "Verifying transaction"
+                    : "Payment required"}
+            </div>
+          </div>
+          {paymentTxHash ? (
+            <p className="mt-3 break-all font-mono text-xs text-cyan-100">
+              Tx hash: {paymentTxHash}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-4">
         <Field label="Agent name">
@@ -278,6 +448,28 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
         </Field>
       </div>
 
+      {paymentRequired ? (
+        <div className="mt-6 border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-cyan-300">Payment summary</p>
+              <p className="mt-1">
+                Publish fee: <span className="font-semibold text-white">{feeAmount} {feeTokenSymbol}</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Receiver</p>
+              <p className="mt-1 font-mono text-xs text-cyan-100">
+                {shortenAddress(receiverAddress)}
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            The publish fee is sent from your connected Starknet wallet and verified onchain before the agent is saved.
+          </p>
+        </div>
+      ) : null}
+
       {success ? (
         <div className="mt-6 border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
           {success}
@@ -302,11 +494,23 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
         </button>
         <button
           type="submit"
-          disabled={publishingDraft}
+          disabled={publishingDraft || !isConnected || (paymentRequired && paymentStatus === "paying")}
           className="inline-flex items-center justify-center gap-2 bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
         >
           <CheckCircle2 className="h-4 w-4" />
-          {publishingDraft ? "Saving..." : isEditing ? "Save changes" : "Publish agent"}
+          {!isConnected
+            ? "Connect wallet to publish"
+            : publishingDraft
+              ? paymentRequired && paymentStatus !== "verified"
+                ? "Paying..."
+                : "Saving..."
+              : isEditing
+                ? paymentRequired && paymentStatus !== "verified"
+                  ? "Pay & save changes"
+                  : "Save changes"
+                : paymentRequired && paymentStatus !== "verified"
+                  ? "Pay & publish"
+                  : "Publish agent"}
         </button>
       </div>
 

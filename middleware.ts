@@ -71,7 +71,6 @@ export async function middleware(request: NextRequest) {
   }
 
   const protectedRoute =
-    pathname === "/create-agent" ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/superadmin") ||
     pathname.endsWith("/chat");
@@ -96,10 +95,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard/user", request.url));
   }
 
-  if (pathname === "/create-agent" && role !== "creator" && role !== "superadmin") {
-    return NextResponse.redirect(new URL("/dashboard/user", request.url));
-  }
-
   return response;
 }
 
@@ -107,7 +102,6 @@ export const config = {
   matcher: [
     "/login",
     "/signup",
-    "/create-agent",
     "/dashboard/:path*",
     "/superadmin/:path*",
     "/agents/:path*/chat",
