@@ -2,6 +2,7 @@ import { groq } from "@ai-sdk/groq";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { agents, getAgentById } from "@/data/agents";
 import type { Agent } from "@/types/agent";
+import { getAgentReviews } from "@/lib/db/reviews";
 
 export const maxDuration = 30;
 
@@ -10,7 +11,7 @@ type ChatRequestBody = {
   agent?: Agent;
 };
 
-function buildSystemPrompt(agent: Agent) {
+function buildSystemPrompt(agent: Agent, recentFeedback: string) {
   return `You are ${agent.name}, a paid AI agent on BatAgents.
 
 Category: ${agent.category}
@@ -19,6 +20,9 @@ Description: ${agent.description}
 
 Your creator configured you with these instructions:
 ${agent.systemPrompt}
+
+Recent buyer feedback and usage context:
+${recentFeedback || "No buyer feedback has been recorded yet."}
 
 Your job is to help the user complete tasks related to your service.
 
@@ -62,9 +66,16 @@ export async function POST(request: Request) {
         : undefined) ??
       requestedAgent;
 
+    const recentReviews = await getAgentReviews(selectedAgent.id, 5);
+    const recentFeedback = recentReviews.length
+      ? recentReviews
+          .map((review) => `- ${review.rating}/5: ${review.review ?? "No comment"} (${review.created_at})`)
+          .join("\n")
+      : "";
+
     const result = streamText({
       model: groq("llama-3.1-8b-instant"),
-      system: buildSystemPrompt(selectedAgent),
+      system: buildSystemPrompt(selectedAgent, recentFeedback),
       messages: await convertToModelMessages(messages),
     });
 

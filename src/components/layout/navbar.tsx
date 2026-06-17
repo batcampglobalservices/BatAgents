@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, LogIn, Menu } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import { getDashboardPathForRole, getRoleLabel } from "@/lib/demo-auth";
@@ -32,6 +32,7 @@ function getClient() {
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(() => !isSupabaseConfigured());
   const setupMessage = isSupabaseConfigured() ? null : getSupabaseSetupMessage();
@@ -87,6 +88,10 @@ export default function Navbar() {
       subscription.unsubscribe();
     };
   }, []);
+
+  if (pathname === "/") {
+    return null;
+  }
 
   const dashboardHref = user ? getDashboardPathForRole(user.role) : "/dashboard";
   const dashboardLabel = user ? `${getRoleLabel(user.role)} Dashboard` : "Dashboard";

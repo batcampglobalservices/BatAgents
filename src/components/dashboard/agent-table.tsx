@@ -30,7 +30,7 @@ export default function AgentTable({ agents }: AgentTableProps) {
 
   if (publishedAgents.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/40 p-8 text-center">
+      <div className="border border-dashed border-white/10 bg-slate-950/40 p-8 text-center">
         <h3 className="text-lg font-semibold text-white">No published agents yet</h3>
         <p className="mt-2 text-sm leading-6 text-slate-400">
           Creators can publish an agent from the create-agent workspace and it will appear here automatically.
@@ -40,7 +40,7 @@ export default function AgentTable({ agents }: AgentTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+    <div className="overflow-hidden border border-white/10 bg-white/5">
       <div className="grid grid-cols-[1.7fr_0.8fr_0.8fr_0.8fr_0.8fr_1fr_0.95fr_0.9fr] gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-[0.3em] text-slate-400">
         <span>Agent</span>
         <span>Price</span>
@@ -97,14 +97,14 @@ export default function AgentTable({ agents }: AgentTableProps) {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/create-agent?edit=${agent.slug}`}
-                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-cyan-400/30 hover:bg-white/10"
+                className="inline-flex items-center gap-1 border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-cyan-400/30 hover:bg-white/10"
               >
                 Edit
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
               <Link
                 href={`/agents/${agent.slug}/chat`}
-                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15"
+                className="inline-flex items-center gap-1 border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15"
               >
                 <MessageSquareText className="h-3.5 w-3.5" />
                 Chat
@@ -158,7 +158,7 @@ export default function AgentTable({ agents }: AgentTableProps) {
                     setBusyAgentKey(null);
                   }
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-1 border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:border-cyan-400/30 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 {busyAgentKey?.id === agent.id && busyAgentKey.action === "mint"
@@ -181,7 +181,7 @@ export default function AgentTable({ agents }: AgentTableProps) {
                     setBusyAgentKey(null);
                   }
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-1 border border-white/10 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CircleOff className="h-3.5 w-3.5" />
                 {busyAgentKey?.id === agent.id && busyAgentKey.action === "listing"

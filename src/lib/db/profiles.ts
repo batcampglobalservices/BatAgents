@@ -3,6 +3,23 @@ import { getMockUserByRole } from "@/data/users";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+function createFallbackProfile(input: {
+  id: string;
+  email: string;
+  displayName?: string;
+  walletAddress?: string;
+  role: UserRole;
+}) {
+  return {
+    id: input.id,
+    email: input.email,
+    display_name: input.displayName ?? input.email,
+    wallet_address: input.walletAddress ?? null,
+    role: input.role,
+    created_at: new Date().toISOString(),
+  };
+}
+
 async function getSupabaseClient() {
   const { getSupabaseServerClient } = await import("@/lib/supabase/server");
 
@@ -31,33 +48,24 @@ export async function upsertProfile(input: {
   walletAddress?: string;
   role: UserRole;
 }) {
-  const client = await getSupabaseClient();
+  const client = getSupabaseAdminClient() ?? (await getSupabaseClient());
 
   if (!client) {
-    return {
-      id: input.id,
-      email: input.email,
-      display_name: input.displayName ?? input.email,
-      wallet_address: input.walletAddress ?? null,
-      role: input.role,
-      created_at: new Date().toISOString(),
-    };
+    return createFallbackProfile(input);
   }
 
-  const { data, error } = await client
-    .from("profiles")
-    .upsert({
-      id: input.id,
-      email: input.email,
-      display_name: input.displayName ?? input.email,
-      wallet_address: input.walletAddress ?? null,
-      role: input.role,
-    })
-    .select("*")
-    .single();
+  const payload = {
+    id: input.id,
+    email: input.email,
+    display_name: input.displayName ?? input.email,
+    wallet_address: input.walletAddress ?? null,
+    role: input.role,
+  };
 
-  if (error) {
-    throw error;
+  const { data, error } = await client.from("profiles").upsert(payload).select("*").maybeSingle();
+
+  if (error || !data) {
+    return createFallbackProfile(input);
   }
 
   return data;
@@ -110,23 +118,35 @@ export async function getWorkspaceUser(fallbackRole: UserRole) {
   const role = (user.user_metadata?.role as UserRole | undefined) ?? fallbackRole;
   const walletAddress = user.user_metadata?.wallet_address as string | undefined;
 
-  const { data: existingProfile } = await client
+  const { data: existingProfile, error: profileReadError } = await client
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (existingProfile) {
+  if (existingProfile && !profileReadError) {
     return profileToAppUser(existingProfile);
   }
 
-  const profile = await upsertProfile({
-    id: user.id,
-    email,
-    displayName,
-    walletAddress,
-    role,
-  });
+  try {
+    const profile = await upsertProfile({
+      id: user.id,
+      email,
+      displayName,
+      walletAddress,
+      role,
+    });
 
-  return profileToAppUser(profile);
+    return profileToAppUser(profile);
+  } catch {
+    return profileToAppUser(
+      createFallbackProfile({
+        id: user.id,
+        email,
+        displayName,
+        walletAddress,
+        role,
+      }),
+    );
+  }
 }

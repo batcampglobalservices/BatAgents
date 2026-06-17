@@ -31,7 +31,7 @@ export default function DashboardHeader({
         : "from-amber-500/15 via-white/5 to-rose-400/10";
 
   return (
-    <header className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${theme} p-6 shadow-[0_20px_80px_rgba(3,7,18,0.28)] backdrop-blur`}>
+    <header className={`relative overflow-hidden border border-white/10 bg-gradient-to-br ${theme} p-6 shadow-[0_20px_80px_rgba(3,7,18,0.18)] backdrop-blur`}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.12),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.08),transparent_28%)]" />
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="relative max-w-3xl">
@@ -59,7 +59,7 @@ export default function DashboardHeader({
 
 function Badge({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+    <div className="border border-white/10 bg-slate-950/60 p-4">
       <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">{label}</p>
       <p className="mt-2 break-all text-sm font-medium text-white">{value}</p>
     </div>

@@ -30,7 +30,7 @@ export default function LiveProofLog({ title = "Live proof log" }: LiveProofLogP
   const reputations = getStoredReputationReceipts();
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur">
+    <section className="border border-white/10 bg-white/5 p-6 backdrop-blur">
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">{title}</p>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-2">
@@ -45,7 +45,7 @@ export default function LiveProofLog({ title = "Live proof log" }: LiveProofLogP
               />
             ))
           ) : (
-            <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5 text-sm text-slate-300">
+            <div className="border border-white/10 bg-slate-950/60 p-5 text-sm text-slate-300">
               No task proofs saved yet.
             </div>
           )}
@@ -62,7 +62,7 @@ export default function LiveProofLog({ title = "Live proof log" }: LiveProofLogP
               />
             ))
           ) : (
-            <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5 text-sm text-slate-300">
+            <div className="border border-white/10 bg-slate-950/60 p-5 text-sm text-slate-300">
               No reputation receipts saved yet.
             </div>
           )}

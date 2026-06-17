@@ -62,10 +62,7 @@ export default function DashboardStats({ agents }: DashboardStatsProps) {
       {cards.map((card) => {
         const Icon = card.icon;
         return (
-          <div
-            key={card.label}
-            className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur"
-          >
+          <div key={card.label} className="border border-white/10 bg-white/5 p-5 backdrop-blur">
             <Icon className="h-5 w-5 text-cyan-300" />
             <p className="mt-4 text-sm text-slate-400">{card.label}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{card.value}</p>

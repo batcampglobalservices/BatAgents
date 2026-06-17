@@ -33,10 +33,10 @@ export default function DashboardSidebar({
         : "from-amber-500/15 via-slate-950/80 to-rose-500/10";
 
   return (
-    <aside className={`rounded-[2rem] border border-white/10 bg-gradient-to-b ${theme} p-5 shadow-[0_20px_80px_rgba(3,7,18,0.28)] backdrop-blur lg:sticky lg:top-24 lg:h-fit`}>
-      <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
+    <aside className={`border border-white/10 bg-gradient-to-b ${theme} p-5 shadow-[0_20px_80px_rgba(3,7,18,0.18)] backdrop-blur lg:sticky lg:top-24 lg:h-fit`}>
+      <div className="border border-white/10 bg-slate-950/65 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-emerald-400 to-violet-500 text-sm font-semibold text-slate-950">
+          <div className="flex h-12 w-12 items-center justify-center bg-gradient-to-br from-cyan-400 via-emerald-400 to-violet-500 text-sm font-semibold text-slate-950">
             {user.name.slice(0, 1)}
           </div>
           <div className="min-w-0">
@@ -66,7 +66,7 @@ export default function DashboardSidebar({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-start gap-3 rounded-2xl border px-4 py-3 transition",
+                "flex items-start gap-3 border px-4 py-3 transition",
                 active
                   ? "border-cyan-400/30 bg-cyan-400/10 text-white"
                   : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10",

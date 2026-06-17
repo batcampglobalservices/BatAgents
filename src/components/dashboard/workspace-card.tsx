@@ -34,7 +34,7 @@ export default function WorkspaceCard({
 }: WorkspaceCardProps) {
   return (
     <article
-      className={`flex h-full flex-col rounded-[1.75rem] border p-5 ${toneStyles[tone]}`}
+      className={`flex h-full flex-col border p-5 ${toneStyles[tone]}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -50,7 +50,7 @@ export default function WorkspaceCard({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+        <div key={stat.label} className="border border-white/10 bg-slate-950/60 p-4">
             <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">{stat.label}</p>
             <p className="mt-2 text-lg font-semibold text-white">{stat.value}</p>
           </div>
@@ -61,7 +61,7 @@ export default function WorkspaceCard({
         <Icon className="h-5 w-5 text-cyan-300" />
         <Link
           href={href}
-          className="inline-flex items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+        className="inline-flex items-center bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
         >
           {cta}
         </Link>

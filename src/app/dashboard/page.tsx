@@ -55,7 +55,7 @@ export default function DashboardLandingPage() {
         />
       </div>
 
-      <div className="mt-8 grid gap-4 rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 border border-white/10 bg-slate-950/60 p-5 sm:grid-cols-3">
         {[
           {
             label: "Buyer",
@@ -75,7 +75,7 @@ export default function DashboardLandingPage() {
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="flex gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div key={item.label} className="flex gap-3 border border-white/10 bg-white/5 p-4">
               <Icon className="mt-0.5 h-5 w-5 shrink-0 text-cyan-300" />
               <div>
                 <p className="text-sm font-semibold text-white">{item.label}</p>

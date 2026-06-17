@@ -136,7 +136,7 @@ export default function UsageHistoryPanel({ walletAddress }: UsageHistoryPanelPr
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04, duration: 0.28 }}
-              className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 backdrop-blur"
+              className="border border-white/10 bg-white/5 p-5 backdrop-blur"
             >
               <Icon className="h-5 w-5 text-cyan-300" />
               <p className="mt-4 text-sm text-slate-400">{item.label}</p>
@@ -147,7 +147,7 @@ export default function UsageHistoryPanel({ walletAddress }: UsageHistoryPanelPr
       </section>
 
       <Tabs defaultValue="spend" className="space-y-4">
-        <TabsList variant="line" className="rounded-full border border-white/10 bg-slate-950/60 p-1">
+        <TabsList variant="line" className="border border-white/10 bg-slate-950/60 p-1">
           <TabsTrigger value="spend">Spend</TabsTrigger>
           <TabsTrigger value="hires">Hires</TabsTrigger>
           <TabsTrigger value="proofs">Proofs</TabsTrigger>
@@ -193,7 +193,7 @@ export default function UsageHistoryPanel({ walletAddress }: UsageHistoryPanelPr
           <CardContent className="space-y-3">
             {summary.categories.length > 0 ? (
               summary.categories.map((category) => (
-                <div key={category.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div key={category.name} className="flex items-center justify-between border border-white/10 bg-white/5 px-4 py-3">
                   <span className="text-sm text-slate-200">{category.name}</span>
                   <Badge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-100">
                     {category.value}
@@ -215,7 +215,7 @@ export default function UsageHistoryPanel({ walletAddress }: UsageHistoryPanelPr
           </CardHeader>
           <CardContent className="space-y-3">
             {buildTimeline(scopedTransactions, scopedHires, scopedProofs).slice(0, 6).map((item) => (
-              <div key={item.key} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div key={item.key} className="border border-white/10 bg-white/5 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-white">{item.title}</p>
                   <span className={cn(

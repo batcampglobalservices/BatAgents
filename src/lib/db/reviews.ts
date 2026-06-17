@@ -13,6 +13,23 @@ async function getSupabaseClient() {
   );
 }
 
+export async function getAgentReviews(agentId: string, limit = 5) {
+  const client = await getSupabaseClient();
+
+  if (!client) {
+    return [];
+  }
+
+  const { data } = await client
+    .from("reviews")
+    .select("*")
+    .eq("agent_id", agentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return data ?? [];
+}
+
 export async function createReviewRecord(review: StoredReview) {
   const client = await getSupabaseClient();
 

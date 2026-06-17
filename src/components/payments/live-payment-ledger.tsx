@@ -89,7 +89,7 @@ export default function LivePaymentLedger({
           ];
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur">
+    <section className="border border-white/10 bg-white/5 p-6 backdrop-blur">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">{title}</p>
@@ -105,10 +105,7 @@ export default function LivePaymentLedger({
           const Icon = metric.icon;
 
           return (
-            <div
-              key={metric.label}
-              className="rounded-3xl border border-white/10 bg-slate-950/60 p-5"
-            >
+            <div key={metric.label} className="border border-white/10 bg-slate-950/60 p-5">
               <Icon className="h-5 w-5 text-cyan-300" />
               <p className="mt-4 text-sm text-slate-400">{metric.label}</p>
               <p className="mt-2 text-2xl font-semibold text-white">{metric.value}</p>
@@ -117,7 +114,7 @@ export default function LivePaymentLedger({
         })}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-3xl border border-white/10">
+      <div className="mt-6 overflow-hidden border border-white/10">
         <div className="grid grid-cols-[1.15fr_1fr_1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr] gap-4 border-b border-white/10 bg-slate-950/60 px-5 py-4 text-xs uppercase tracking-[0.3em] text-slate-400">
           <span>Tx Hash</span>
           <span>Buyer</span>
@@ -187,7 +184,7 @@ function StatusBadge({
         : "bg-rose-400/10 text-rose-100 border-rose-400/20";
 
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${styles}`}>
+      <span className={`inline-flex border px-3 py-1 text-xs font-medium ${styles}`}>
       {status}
     </span>
   );

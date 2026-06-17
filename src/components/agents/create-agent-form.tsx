@@ -1,26 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CheckCircle2, Sparkles } from "lucide-react";
+import { useAccount } from "@starknet-react/core";
 import type { Agent, AgentCategory } from "@/types/agent";
 import { agentCategories } from "@/data/agents";
-import { useAccount, useProvider } from "@starknet-react/core";
-import { isContractConfigured } from "@/lib/contracts";
-import { registerAgentOnchain } from "@/lib/starknet-contract";
-import { waitForStarknetTransaction } from "@/lib/starknet-payments";
+import { uploadAgentMetadataTo0G } from "@/lib/0g";
 import ProofCard from "@/components/0g/proof-card";
 import type { ZeroGProof } from "@/types/0g";
-import PageHeader from "@/components/ui/page-header";
-import StatusBadge from "@/components/ui/status-badge";
 import {
   createAgentRecord,
-  updateAgentRecord,
   updateAgent0GProof,
-  updateAgentOnchainRegistration,
+  updateAgentRecord,
 } from "@/lib/db/agents";
 
-const initialState = {
+const defaultState = {
   name: "",
   category: "Business" as AgentCategory,
   service: "",
@@ -28,34 +22,24 @@ const initialState = {
   currency: "STRK" as "STRK" | "ETH",
   description: "",
   prompt: "",
-  status: "listed" as "listed" | "unlisted",
 };
 
 export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent | null }) {
   const [form, setForm] = useState(() => initialFormState(initialAgent));
-  const [submitted, setSubmitted] = useState(false);
   const [generatingProfile, setGeneratingProfile] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
-  const [registrationState, setRegistrationState] = useState<
-    "idle" | "connecting" | "submitting" | "waiting" | "success" | "failed"
-  >("idle");
-  const [registrationTxHash, setRegistrationTxHash] = useState<string | null>(null);
-  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [publishedProof, setPublishedProof] = useState<ZeroGProof | null>(null);
   const [publishedAgentId, setPublishedAgentId] = useState<string | null>(null);
-  const { account, address, isConnected } = useAccount();
-  const provider = useProvider();
-
-  useEffect(() => {
-    setForm(initialFormState(initialAgent));
-  }, [initialAgent]);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { address, isConnected } = useAccount();
 
   const isEditing = Boolean(initialAgent);
   const agentSlug = slugify(form.name || "draft-agent");
-  const creatorLabel = "Creator";
 
   async function generateProfile() {
     setGeneratingProfile(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/agents/generate", {
@@ -66,7 +50,6 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
 
       const payload = (await response.json()) as {
         agent?: Partial<typeof form> & {
-          sampleQuestions?: string[];
           systemPrompt?: string;
           currency?: "STRK" | "ETH";
           price?: number;
@@ -90,10 +73,8 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
           price: String(payload.agent?.price ?? current.price),
         }));
       }
-    } catch (error) {
-      setRegistrationError(
-        error instanceof Error ? error.message : "Unable to generate agent draft.",
-      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to generate agent draft.");
     } finally {
       setGeneratingProfile(false);
     }
@@ -101,11 +82,14 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
 
   async function publishDraft() {
     if (!isConnected || !address) {
-      setRegistrationError("Connect a Starknet wallet before publishing an agent.");
+      setError("Connect a Starknet wallet before publishing an agent.");
       return;
     }
 
     setPublishingDraft(true);
+    setError(null);
+    setSuccess(null);
+
     const now = new Date().toISOString();
     const createdAgent = {
       id: initialAgent?.id ?? agentSlug,
@@ -116,10 +100,12 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
       service: form.service || "Agent service",
       price: Number(form.price || "0"),
       currency: form.currency,
-      status: form.status as "listed" | "unlisted",
-      rating: 5,
-      completedJobs: 0,
-      creator: creatorLabel,
+      status: (initialAgent?.status === "unlisted" ? "unlisted" : "listed") as
+        | "listed"
+        | "unlisted",
+      rating: initialAgent?.rating ?? 5,
+      completedJobs: initialAgent?.completedJobs ?? 0,
+      creator: initialAgent?.creator ?? "Creator",
       creatorWallet: address,
       systemPrompt:
         form.prompt ||
@@ -135,41 +121,26 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
               "What can you help with first?",
               "Can you give me a quick task plan?",
             ],
-      createdAt: now,
+      createdAt: initialAgent?.createdAt ?? now,
       publishedAt: initialAgent?.publishedAt ?? now,
       zeroGProof: publishedProof ?? undefined,
     };
 
-    setPublishedAgentId(createdAgent.id);
-
     try {
-      const response = await fetch("/api/0g/upload-agent-metadata", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: createdAgent.id,
-          agentName: createdAgent.name,
-          creatorWallet: createdAgent.creatorWallet,
-          category: createdAgent.category,
-          service: createdAgent.service,
-          description: createdAgent.description,
-          systemPrompt: createdAgent.systemPrompt,
-          sampleQuestions: createdAgent.sampleQuestions,
-          publishedAt: now,
-        }),
+      const proof = await uploadAgentMetadataTo0G({
+        agentId: createdAgent.id,
+        agentName: createdAgent.name,
+        creatorWallet: createdAgent.creatorWallet,
+        category: createdAgent.category,
+        service: createdAgent.service,
+        description: createdAgent.description,
+        systemPrompt: createdAgent.systemPrompt,
+        sampleQuestions: createdAgent.sampleQuestions,
+        publishedAt: now,
       });
 
-      const payload = (await response.json()) as {
-        proof?: ZeroGProof;
-        error?: string;
-        message?: string;
-      };
+      setPublishedProof(proof);
 
-      if (!response.ok || !payload.proof) {
-        throw new Error(payload.error || "Unable to create 0G proof.");
-      }
-
-      setPublishedProof(payload.proof);
       if (isEditing) {
         await updateAgentRecord(createdAgent.id, {
           name: createdAgent.name,
@@ -184,346 +155,174 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
       } else {
         await createAgentRecord({
           ...createdAgent,
-          zeroGProof: payload.proof,
+          zeroGProof: proof,
         });
       }
-      await updateAgent0GProof(createdAgent.id, payload.proof);
-    } catch (error) {
-      setRegistrationError(
-        error instanceof Error ? error.message : "Unable to publish agent.",
-      );
-      setPublishingDraft(false);
-      return;
-    }
 
-    setSubmitted(true);
-    setPublishingDraft(false);
+      await updateAgent0GProof(createdAgent.id, proof);
+      setPublishedAgentId(createdAgent.id);
+      setSuccess("Agent saved. Buyer feedback and chat history will refine future responses.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to publish agent.");
+    } finally {
+      setPublishingDraft(false);
+    }
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <form
-        className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void publishDraft();
-        }}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <PageHeader
-            eyebrow="Creator workspace"
-            title={isEditing ? "Edit and republish the agent." : "Create an AI agent in four guided steps."}
-            description="Write the agent, let Groq draft the profile, store metadata on 0G, then register the agent on Starknet Sepolia."
-          />
-          <StatusBadge tone="cyan">Creator</StatusBadge>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-4">
-          {[
-            "1. Agent basics",
-            "2. AI instructions",
-            "3. 0G metadata",
-            "4. Onchain registration",
-          ].map((step) => (
-            <div key={step} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-              {step}
-            </div>
-          ))}
-        </div>
-
-        {submitted ? (
-          <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-            Agent created and 0G proof stored. Register this agent onchain to allow paid hiring.
-          </div>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <Field label="Agent name">
-            <input
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              placeholder="Pitch Coach Agent"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
-            />
-          </Field>
-          <Field label="Category">
-            <select
-              value={form.category}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  category: event.target.value as AgentCategory,
-                }))
-              }
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
-            >
-              {agentCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Service">
-            <input
-              value={form.service}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, service: event.target.value }))
-              }
-              placeholder="Pitch review and startup storytelling"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
-            />
-          </Field>
-          <Field label="Price">
-            <div className="flex gap-3">
-              <input
-                type="number"
-                min="1"
-                value={form.price}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, price: event.target.value }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
-              />
-              <select
-                value={form.currency}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    currency: event.target.value as "STRK" | "ETH",
-                  }))
-                }
-                className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
-              >
-                <option value="STRK">STRK</option>
-                <option value="ETH">ETH</option>
-              </select>
-            </div>
-          </Field>
-          <Field label="Listing status">
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  status: event.target.value as "listed" | "unlisted",
-                }))
-              }
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
-            >
-              <option value="listed">Listed</option>
-              <option value="unlisted">Unlisted</option>
-            </select>
-          </Field>
-        </div>
-
-        <div className="mt-4 grid gap-4">
-          <Field label="Description">
-            <textarea
-              value={form.description}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, description: event.target.value }))
-              }
-              rows={4}
-              placeholder="Describe exactly what this agent helps users accomplish."
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
-            />
-          </Field>
-          <Field label="System prompt">
-            <textarea
-              value={form.prompt}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, prompt: event.target.value }))
-              }
-              rows={5}
-              placeholder="Define the agent's working style and guardrails."
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
-            />
-          </Field>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={generateProfile}
-            disabled={generatingProfile}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-cyan-400/30 hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
-          >
-            <Sparkles className="h-4 w-4" />
-            {generatingProfile ? "Generating..." : "Generate with AI"}
-          </button>
-          <button
-            type="submit"
-            disabled={publishingDraft}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {publishingDraft ? "Saving..." : isEditing ? "Save changes" : "Publish agent"}
-          </button>
-        </div>
-
-        {submitted ? (
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">
-              Onchain registration
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Register this agent on Starknet Sepolia so buyers can hire it through the BatAgents Cairo contract.
-            </p>
-
-            {!isContractConfigured() ? (
-              <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
-                BatAgents contract address is not configured. Add
-                NEXT_PUBLIC_BATAGENTS_CONTRACT_ADDRESS after deployment.
-              </div>
-            ) : null}
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-300">
-                <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">
-                  Agent slug
-                </p>
-                <p className="mt-2 font-mono text-xs text-white">{agentSlug}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-300">
-                <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">
-                  Wallet
-                </p>
-                <p className="mt-2 font-mono text-xs text-white">
-                  {address ?? "Not connected"}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={async () => {
-                if (!isConnected || !account) {
-                  setRegistrationError("Connect a Starknet wallet first.");
-                  return;
-                }
-
-                if (!isContractConfigured()) {
-                  setRegistrationError(
-                    "BatAgents contract address is not configured. Add NEXT_PUBLIC_BATAGENTS_CONTRACT_ADDRESS after deployment.",
-                  );
-                  return;
-                }
-
-                setRegistrationError(null);
-                setRegistrationState("submitting");
-
-                try {
-                  const txHash = await registerAgentOnchain({
-                    account,
-                    agentSlug,
-                    price: Number(form.price),
-                  });
-
-                  setRegistrationTxHash(txHash);
-                  setRegistrationState("waiting");
-                  const status = await waitForStarknetTransaction(
-                    account ?? provider.provider,
-                    txHash,
-                  );
-
-                  if (status !== "accepted") {
-                    throw new Error(
-                      status === "rejected"
-                        ? "Registration transaction was rejected."
-                        : "Registration confirmation timed out on Starknet Sepolia.",
-                    );
-                  }
-
-                  setRegistrationState("success");
-                  await updateAgentOnchainRegistration(agentSlug, txHash);
-                } catch (error) {
-                  setRegistrationState("failed");
-                  setRegistrationError(
-                    error instanceof Error ? error.message : "Registration failed.",
-                  );
-                }
-              }}
-              disabled={registrationState === "submitting" || registrationState === "waiting"}
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {registrationState === "submitting"
-                ? "Registering..."
-                : registrationState === "waiting"
-                  ? "Waiting for confirmation..."
-                  : registrationState === "success"
-                    ? "Agent registered onchain"
-                    : "Register Agent Onchain"}
-            </button>
-
-            {registrationTxHash ? (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
-                <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">
-                  Registration tx
-                </p>
-                <p className="mt-2 break-all font-mono text-xs text-white">
-                  {registrationTxHash}
-                </p>
-              </div>
-            ) : null}
-
-            {registrationError ? (
-              <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-100">
-                {registrationError}
-              </div>
-            ) : null}
-
-            {publishedProof ? (
-              <div className="mt-4">
-                <ProofCard proofType="Agent metadata proof" proof={publishedProof} status="stored" />
-              </div>
-            ) : null}
-
-            {publishedAgentId ? (
-              <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-                Agent saved to the app record as <span className="font-mono">{publishedAgentId}</span>.
-                It now appears in the marketplace and is ready for Starknet registration.
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </form>
-
-      <aside className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-6">
-        <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Live preview</p>
-        <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-5">
-          <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">
-            {form.category}
-          </p>
+    <form
+      className="border border-white/10 bg-slate-950/60 p-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void publishDraft();
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.35em] text-cyan-300">Creator form</p>
           <h2 className="mt-3 text-2xl font-semibold text-white">
-            {form.name || "Your agent name"}
+            {isEditing ? "Edit agent" : "Create agent"}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
-            {form.description || "The description will help buyers understand the task."}
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+            Keep the initial prompt concise. Creator instructions set the agent behavior, and buyer chats plus reviews add ongoing feedback context.
           </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
-              {form.currency} {form.price}
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
-              {form.service || "Service preview"}
-            </span>
-          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4">
+        <Field label="Agent name">
+          <input
+            value={form.name}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="Pitch Coach Agent"
+            className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
+          />
+        </Field>
+
+        <Field label="Category">
+          <select
+            value={form.category}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                category: event.target.value as AgentCategory,
+              }))
+            }
+            className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+          >
+            {agentCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Service">
+          <input
+            value={form.service}
+            onChange={(event) => setForm((current) => ({ ...current, service: event.target.value }))}
+            placeholder="Pitch review and startup storytelling"
+            className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
+          />
+        </Field>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Price">
+            <input
+              type="number"
+              min="1"
+              value={form.price}
+              onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
+              className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+            />
+          </Field>
+          <Field label="Currency">
+            <select
+              value={form.currency}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  currency: event.target.value as "STRK" | "ETH",
+                }))
+              }
+              className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+            >
+              <option value="STRK">STRK</option>
+              <option value="ETH">ETH</option>
+            </select>
+          </Field>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-          <p className="text-xs uppercase tracking-[0.28em] text-slate-500">What happens next</p>
-          <ul className="mt-3 space-y-2 leading-6">
-            <li>0G metadata keeps the profile verifiable outside the app database.</li>
-            <li>Starknet registration lets buyers hire the agent on Sepolia.</li>
-            <li>The marketplace updates once the record is saved.</li>
-          </ul>
+        <Field label="Description">
+          <textarea
+            value={form.description}
+            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+            rows={4}
+            placeholder="Describe exactly what this agent helps users accomplish."
+            className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
+          />
+        </Field>
+
+        <Field label="Training prompt">
+          <textarea
+            value={form.prompt}
+            onChange={(event) => setForm((current) => ({ ...current, prompt: event.target.value }))}
+            rows={5}
+            placeholder="Define the agent's working style, guardrails, and tone."
+            className="w-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50"
+          />
+          <p className="text-xs leading-5 text-slate-500">
+            Creator instructions shape the first version. Buyer conversations and ratings are kept as feedback for future updates.
+          </p>
+        </Field>
+      </div>
+
+      {success ? (
+        <div className="mt-6 border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+          {success}
         </div>
-      </aside>
-    </div>
+      ) : null}
+
+      {error ? (
+        <div className="mt-6 border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-100">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={generateProfile}
+          disabled={generatingProfile}
+          className="inline-flex items-center justify-center gap-2 border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-cyan-400/30 hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+        >
+          <Sparkles className="h-4 w-4" />
+          {generatingProfile ? "Generating..." : "Generate with AI"}
+        </button>
+        <button
+          type="submit"
+          disabled={publishingDraft}
+          className="inline-flex items-center justify-center gap-2 bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          {publishingDraft ? "Saving..." : isEditing ? "Save changes" : "Publish agent"}
+        </button>
+      </div>
+
+      {publishedProof ? (
+        <div className="mt-6">
+          <ProofCard proofType="Agent metadata proof" proof={publishedProof} status="stored" />
+        </div>
+      ) : null}
+
+      {publishedAgentId ? (
+        <div className="mt-6 border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-300">
+          Agent saved as <span className="font-mono text-white">{publishedAgentId}</span>.
+          Use the creator dashboard to continue with onchain registration and performance tracking.
+        </div>
+      ) : null}
+    </form>
   );
 }
 
@@ -552,7 +351,7 @@ function slugify(value: string) {
 
 function initialFormState(initialAgent?: Agent | null) {
   if (!initialAgent) {
-    return initialState;
+    return defaultState;
   }
 
   return {
@@ -563,6 +362,5 @@ function initialFormState(initialAgent?: Agent | null) {
     currency: initialAgent.currency,
     description: initialAgent.description,
     prompt: initialAgent.systemPrompt,
-    status: initialAgent.status === "unlisted" ? "unlisted" : "listed",
   };
 }

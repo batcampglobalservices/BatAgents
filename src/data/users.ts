@@ -1,5 +1,10 @@
 import type { AppUser } from "@/types/user";
 
+const SUPERADMIN_NAME = process.env.NEXT_PUBLIC_SUPERADMIN_NAME?.trim() || "BatAgents Ops";
+const SUPERADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL?.trim() || "ops@batagents.io";
+const SUPERADMIN_WALLET_ADDRESS =
+  process.env.NEXT_PUBLIC_SUPERADMIN_WALLET_ADDRESS?.trim() || "0x0a11...c0de";
+
 export const mockUsers: AppUser[] = [
   {
     id: "user-buyer-001",
@@ -21,10 +26,10 @@ export const mockUsers: AppUser[] = [
   },
   {
     id: "user-admin-001",
-    name: "BatAgents Ops",
-    email: "ops@batagents.io",
+    name: SUPERADMIN_NAME,
+    email: SUPERADMIN_EMAIL,
     role: "superadmin",
-    walletAddress: "0x0a11...c0de",
+    walletAddress: SUPERADMIN_WALLET_ADDRESS,
     avatarUrl: "",
     joinedAt: "2026-05-10T08:00:00.000Z",
   },

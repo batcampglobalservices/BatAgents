@@ -44,13 +44,13 @@ export default function ActivityOverview({ title = "Live activity" }: ActivityOv
   ];
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur">
+    <section className="border border-white/10 bg-white/5 p-6 backdrop-blur">
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">{title}</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => {
           const Icon = metric.icon;
           return (
-            <div key={metric.label} className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+            <div key={metric.label} className="border border-white/10 bg-slate-950/60 p-5">
               <Icon className="h-5 w-5 text-cyan-300" />
               <p className="mt-4 text-sm text-slate-400">{metric.label}</p>
               <p className="mt-2 text-2xl font-semibold text-white">{metric.value}</p>
