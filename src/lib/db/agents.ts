@@ -16,13 +16,17 @@ import {
 } from "@/lib/supabase/client";
 
 async function getSupabaseClient() {
-  const { getSupabaseServerClient } = await import("@/lib/supabase/server");
+  try {
+    const { getSupabaseServerClient } = await import("@/lib/supabase/server");
 
-  return (
-    getSupabaseBrowserClient() ??
-    (await getSupabaseServerClient()) ??
-    getSupabaseAdminClient()
-  );
+    return (
+      getSupabaseBrowserClient() ??
+      (await getSupabaseServerClient()) ??
+      getSupabaseAdminClient()
+    );
+  } catch {
+    return getSupabaseBrowserClient() ?? getSupabaseAdminClient();
+  }
 }
 
 function rowToAgent(row: {
@@ -101,36 +105,53 @@ function mergeUniqueAgents(agents: Agent[]) {
 }
 
 export async function getAgents() {
-  const client = await getSupabaseClient();
+  try {
+    const client = await getSupabaseClient();
 
-  if (!client) {
+    if (!client) {
+      return mergeUniqueAgents([]);
+    }
+
+    const { data, error } = await client
+      .from("agents")
+      .select("*")
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (error) {
+      return mergeUniqueAgents([]);
+    }
+
+    return mergeUniqueAgents((data ?? []).map(rowToAgent));
+  } catch {
     return mergeUniqueAgents([]);
   }
-
-  const { data } = await client.from("agents").select("*").order("created_at", {
-    ascending: false,
-  });
-
-  return mergeUniqueAgents((data ?? []).map(rowToAgent));
 }
 
 export async function getAgentBySlug(
   slug: string,
   options?: { includeUnlisted?: boolean },
 ) {
-  const normalized = slug.trim().toLowerCase();
-  const publishedAgents = await getAgents();
-  const match = publishedAgents.find((agent) => agent.slug === normalized || agent.id === normalized);
+  try {
+    const normalized = slug.trim().toLowerCase();
+    const publishedAgents = await getAgents();
+    const match = publishedAgents.find(
+      (agent) => agent.slug === normalized || agent.id === normalized,
+    );
 
-  if (!match) {
+    if (!match) {
+      return undefined;
+    }
+
+    if (options?.includeUnlisted) {
+      return match;
+    }
+
+    return match.status === "unlisted" ? undefined : match;
+  } catch {
     return undefined;
   }
-
-  if (options?.includeUnlisted) {
-    return match;
-  }
-
-  return match.status === "unlisted" ? undefined : match;
 }
 
 export async function getListedAgents() {

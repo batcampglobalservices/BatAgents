@@ -19,10 +19,14 @@ type AgentRouteViewProps = {
 };
 
 export default function AgentRouteView({ agentId, mode, initialAgent }: AgentRouteViewProps) {
-  useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
+  const createdAgentsSnapshot = useSyncExternalStore(
+    subscribeCreatedAgentsStore,
+    getStoredCreatedAgentsSnapshot,
+    () => "[]",
+  );
   const agent = useMemo(
     () => getPublishedAgentBySlug(staticAgents, agentId) ?? initialAgent ?? null,
-    [agentId, initialAgent],
+    [agentId, createdAgentsSnapshot, initialAgent],
   );
 
   if (!agent) {
