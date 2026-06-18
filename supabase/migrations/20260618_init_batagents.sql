@@ -1,4 +1,5 @@
--- BatAgents hybrid schema: Supabase for app persistence, 0G for proofs.
+-- BatAgents initial Supabase schema for app persistence.
+-- Apply this in the Supabase SQL editor or via the Supabase CLI.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -141,35 +142,42 @@ alter table public.reviews enable row level security;
 alter table public.reputation_receipts enable row level security;
 alter table public.proof_events enable row level security;
 
+drop policy if exists "Public read agents" on public.agents;
 create policy "Public read agents"
 on public.agents for select
 using (status = 'listed');
 
+drop policy if exists "Authenticated insert agents" on public.agents;
 create policy "Authenticated insert agents"
 on public.agents for insert
 to authenticated
 with check (true);
 
+drop policy if exists "Authenticated update own agents" on public.agents;
 create policy "Authenticated update own agents"
 on public.agents for update
 to authenticated
 using (creator_id = auth.uid());
 
+drop policy if exists "Users read own profiles" on public.profiles;
 create policy "Users read own profiles"
 on public.profiles for select
 to authenticated
 using (id = auth.uid());
 
+drop policy if exists "Users update own profiles" on public.profiles;
 create policy "Users update own profiles"
 on public.profiles for update
 to authenticated
 using (id = auth.uid());
 
+drop policy if exists "Users read own hires" on public.hires;
 create policy "Users read own hires"
 on public.hires for select
 to authenticated
 using (buyer_id = auth.uid());
 
+drop policy if exists "Creators read agent hires" on public.hires;
 create policy "Creators read agent hires"
 on public.hires for select
 to authenticated
@@ -181,16 +189,19 @@ using (
   )
 );
 
+drop policy if exists "Users read own transactions" on public.transactions;
 create policy "Users read own transactions"
 on public.transactions for select
 to authenticated
 using (buyer_wallet is not null);
 
+drop policy if exists "Users read own task proofs" on public.task_proofs;
 create policy "Users read own task proofs"
 on public.task_proofs for select
 to authenticated
 using (buyer_id = auth.uid());
 
+drop policy if exists "Creators read task proofs" on public.task_proofs;
 create policy "Creators read task proofs"
 on public.task_proofs for select
 to authenticated
@@ -202,11 +213,13 @@ using (
   )
 );
 
+drop policy if exists "Users read own reviews" on public.reviews;
 create policy "Users read own reviews"
 on public.reviews for select
 to authenticated
 using (buyer_id = auth.uid());
 
+drop policy if exists "Creators read reputation receipts" on public.reputation_receipts;
 create policy "Creators read reputation receipts"
 on public.reputation_receipts for select
 to authenticated
@@ -218,6 +231,7 @@ using (
   )
 );
 
+drop policy if exists "Service role can manage all records" on public.proof_events;
 create policy "Service role can manage all records"
 on public.proof_events
 for all
@@ -225,5 +239,3 @@ to service_role
 using (true)
 with check (true);
 
--- MVP-safe: expand production RLS with creator ownership, superadmin bypass, and
--- more granular insert/update rules as deployment hardening continues.
