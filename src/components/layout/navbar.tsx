@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import LogoMark from "@/components/brand/logo-mark";
+import WalletConnectButton from "@/components/wallet/wallet-connect-button";
 
 const links = [
   { href: "/marketplace", label: "Marketplace" },
@@ -142,6 +143,9 @@ export default function Navbar() {
               {getRoleLabel(user.role)}
             </Badge>
           ) : null}
+          <div className="hidden sm:block">
+            <WalletConnectButton variant="compact" />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -178,6 +182,7 @@ export default function Navbar() {
                       {link.label}
                     </Link>
                   ))}
+                  <WalletConnectButton variant="compact" />
                   <Link href={dashboardHref} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
                     {dashboardLabel}
                   </Link>
