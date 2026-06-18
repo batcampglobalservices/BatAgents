@@ -306,7 +306,7 @@ export default function PaymentUnlockCard({
 
       if (balance < amount) {
         throw new Error(
-          "You need Starknet Sepolia ETH to hire this agent. Fund your wallet using a Starknet Sepolia faucet, then try again.",
+          "You need Starknet Sepolia STRK to hire this agent. Fund your wallet using a Starknet Sepolia faucet, then try again.",
         );
       }
 
@@ -544,7 +544,7 @@ export default function PaymentUnlockCard({
           Testing on Starknet Sepolia
         </summary>
         <div className="mt-3 text-sm leading-6 text-slate-300">
-          Connect Argent X or Braavos, switch to Starknet Sepolia, fund the wallet with Sepolia ETH,
+          Connect Argent X or Braavos, switch to Starknet Sepolia, fund the wallet with Sepolia STRK,
           then hire the agent. The chat unlocks only after the contract confirms your hire.
         </div>
       </details>

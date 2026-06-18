@@ -56,7 +56,7 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
   const agentSlug = slugify(form.name || "draft-agent");
   const creationFee = Number(process.env.NEXT_PUBLIC_CREATE_AGENT_FEE?.trim() || "0");
   const creationFeeTokenSymbol =
-    process.env.NEXT_PUBLIC_CREATE_AGENT_FEE_TOKEN_SYMBOL?.trim() || "Starknet";
+    process.env.NEXT_PUBLIC_CREATE_AGENT_FEE_TOKEN_SYMBOL?.trim() || "STRK";
   const paymentRequired = creationFee > 0;
   const receiverAddress = getPaymentReceiverAddress();
   const receiverAddressValid = isValidStarknetAddress(receiverAddress);
