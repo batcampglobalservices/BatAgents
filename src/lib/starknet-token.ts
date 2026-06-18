@@ -19,19 +19,19 @@ export function parseTokenAmount(amount: number, decimals: number): bigint {
   return BigInt(normalized || "0");
 }
 
-function requirePaymentTokenAddress() {
+function requirePaymentTokenAddress(tokenAddress = PAYMENT_TOKEN_ADDRESS) {
   if (!isPaymentTokenConfigured()) {
     throw new Error("Payment token address is not configured.");
   }
 
-  return PAYMENT_TOKEN_ADDRESS;
+  return tokenAddress;
 }
 
-function buildApproveCall(spender: string, amount: bigint): Call {
+function buildApproveCall(spender: string, amount: bigint, tokenAddress = PAYMENT_TOKEN_ADDRESS): Call {
   const tokenAmount = uint256.bnToUint256(amount);
 
   return {
-    contractAddress: requirePaymentTokenAddress(),
+    contractAddress: requirePaymentTokenAddress(tokenAddress),
     entrypoint: "approve",
     calldata: [spender, tokenAmount.low.toString(), tokenAmount.high.toString()],
   };
@@ -70,6 +70,7 @@ export async function approvePaymentToken(params: {
   account: unknown;
   spender: string;
   amount: bigint;
+  tokenAddress?: string;
 }): Promise<string> {
   const executor = resolveExecutor(params.account);
 
@@ -77,7 +78,7 @@ export async function approvePaymentToken(params: {
     throw new Error("Connected Starknet account is not available.");
   }
 
-  const call = buildApproveCall(params.spender, params.amount);
+  const call = buildApproveCall(params.spender, params.amount, params.tokenAddress);
   const calldata = Array.isArray(call.calldata)
     ? (call.calldata as string[])
     : [];
@@ -108,8 +109,9 @@ async function readTokenValue(
   provider: Pick<ProviderInterface, "callContract">,
   entrypoint: string,
   calldata: string[],
+  tokenAddress = requirePaymentTokenAddress(),
 ) {
-  const result = await provider.callContract(buildReadCall(entrypoint, calldata));
+  const result = await provider.callContract(buildReadCall(entrypoint, calldata, tokenAddress));
   const low = BigInt(result[0] ?? "0");
   const high = BigInt(result[1] ?? "0");
 
@@ -119,16 +121,18 @@ async function readTokenValue(
 export async function getPaymentTokenBalance(
   provider: Pick<ProviderInterface, "callContract">,
   owner: string,
+  tokenAddress = PAYMENT_TOKEN_ADDRESS,
 ) {
-  return readTokenValue(provider, "balanceOf", [owner]);
+  return readTokenValue(provider, "balanceOf", [owner], tokenAddress);
 }
 
 export async function getPaymentTokenAllowance(
   provider: Pick<ProviderInterface, "callContract">,
   owner: string,
   spender: string,
+  tokenAddress = PAYMENT_TOKEN_ADDRESS,
 ) {
-  return readTokenValue(provider, "allowance", [owner, spender]);
+  return readTokenValue(provider, "allowance", [owner, spender], tokenAddress);
 }
 
 export { ERC20_ABI };
