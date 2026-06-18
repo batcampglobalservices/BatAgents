@@ -35,7 +35,7 @@ export default function StarknetProvider({ children }: StarknetProviderProps) {
         },
       })}
       connectors={connectors}
-      autoConnect={false}
+      autoConnect
       queryClient={queryClient}
       defaultChainId={STARKNET_CHAIN.id}
     >
