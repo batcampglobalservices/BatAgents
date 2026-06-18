@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Lock, Unlock } from "lucide-react";
-import { useAccount, useProvider } from "@starknet-react/core";
+import { useAccount, useNetwork, useProvider } from "@starknet-react/core";
 import { toast } from "sonner";
 import type { Agent } from "@/types/agent";
 import { DEFAULT_PAYMENT_TOKEN, STARKNET_CHAIN } from "@/lib/starknet-config";
@@ -63,6 +63,7 @@ export default function PaymentUnlockCard({
   onUnlocked,
 }: PaymentUnlockCardProps) {
   const { account, address, isConnected } = useAccount();
+  const { chain } = useNetwork();
   const provider = useProvider();
 
   const [stage, setStage] = useState<HireStage>("idle");
@@ -85,10 +86,13 @@ export default function PaymentUnlockCard({
     () => getPaymentReceiverAddress(agent.creatorWallet),
     [agent.creatorWallet],
   );
+  const isWrongNetwork =
+    Boolean(chain?.network) && chain.network !== STARKNET_CHAIN.network;
   const readyToAttemptHire = Boolean(
     account &&
       address &&
       isConnected &&
+      !isWrongNetwork &&
       hasContract &&
       hasToken &&
       paymentTokenAddressValid &&
@@ -126,6 +130,12 @@ export default function PaymentUnlockCard({
         setErrorMessage(
           "Payment token address is not configured. Add NEXT_PUBLIC_PAYMENT_TOKEN_ADDRESS after deployment.",
         );
+        return;
+      }
+
+      if (isWrongNetwork) {
+        setStage("failed");
+        setErrorMessage("Switch your Starknet wallet to Sepolia testnet.");
         return;
       }
 
@@ -174,7 +184,7 @@ export default function PaymentUnlockCard({
     return () => {
       cancelled = true;
     };
-  }, [account, address, agent.slug, agent.onchainAgentId, hasContract, hasToken, onchainAgentId, provider]);
+  }, [account, address, agent.slug, agent.onchainAgentId, hasContract, hasToken, isWrongNetwork, onchainAgentId, provider]);
 
   const statusLabel = useMemo(() => {
     if (isHiredOnchain || stage === "unlocked" || stage === "confirmed") {
@@ -252,6 +262,12 @@ export default function PaymentUnlockCard({
       setErrorMessage(
         "Payment token address is not configured. Add NEXT_PUBLIC_PAYMENT_TOKEN_ADDRESS after deployment.",
       );
+      return;
+    }
+
+    if (isWrongNetwork) {
+      setStage("failed");
+      setErrorMessage("Switch your Starknet wallet to Sepolia testnet.");
       return;
     }
 
@@ -516,6 +532,12 @@ export default function PaymentUnlockCard({
       <div className="mt-4">
         <WalletConnectButton />
       </div>
+
+      {isWrongNetwork ? (
+        <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+          Switch your Starknet wallet to Sepolia testnet to hire this agent.
+        </div>
+      ) : null}
 
       <details className="mt-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4">
         <summary className="cursor-pointer list-none text-sm font-medium text-white">

@@ -60,6 +60,12 @@ export default function WalletConnectButton() {
         </div>
       ) : null}
 
+      {isConnected && !isSepolia ? (
+        <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+          Switch this wallet to Starknet Sepolia before hiring or registering agents.
+        </div>
+      ) : null}
+
       {!isConnected ? (
         <div className="mt-4 grid gap-2">
           {availableConnectors.length > 0 ? (

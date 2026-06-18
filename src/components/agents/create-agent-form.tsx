@@ -57,9 +57,6 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
   const creationFee = Number(process.env.NEXT_PUBLIC_CREATE_AGENT_FEE?.trim() || "0");
   const creationFeeTokenSymbol =
     process.env.NEXT_PUBLIC_CREATE_AGENT_FEE_TOKEN_SYMBOL?.trim() || "Starknet";
-  const creationFeeTokenAddress =
-    process.env.NEXT_PUBLIC_CREATE_AGENT_FEE_TOKEN_ADDRESS?.trim() ||
-    DEFAULT_PAYMENT_TOKEN.address;
   const paymentRequired = creationFee > 0;
   const receiverAddress = getPaymentReceiverAddress();
   const receiverAddressValid = isValidStarknetAddress(receiverAddress);
@@ -137,7 +134,7 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
     const feeAmountBaseUnits = parseTokenAmount(feeAmount, DEFAULT_PAYMENT_TOKEN.decimals);
 
     try {
-      const balance = await getPaymentTokenBalance(provider.provider, address, creationFeeTokenAddress);
+      const balance = await getPaymentTokenBalance(provider.provider, address, DEFAULT_PAYMENT_TOKEN.address);
 
       if (balance < feeAmountBaseUnits) {
         throw new Error(
@@ -150,7 +147,7 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
 
       const tx = await account.execute([
         buildPaymentCall(
-          creationFeeTokenAddress,
+          DEFAULT_PAYMENT_TOKEN.address,
           receiverAddress,
           feeAmount,
           DEFAULT_PAYMENT_TOKEN.decimals,
