@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Sparkles, Wallet } from "lucide-react";
 import { useAccount, useProvider } from "@starknet-react/core";
 import type { Agent, AgentCategory } from "@/types/agent";
@@ -47,6 +47,11 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
   const [paymentTxHash, setPaymentTxHash] = useState<string | null>(null);
   const [publishedProof, setPublishedProof] = useState<ZeroGProof | null>(null);
   const [publishedAgentId, setPublishedAgentId] = useState<string | null>(null);
+  const [balancePreview, setBalancePreview] = useState<{
+    status: "idle" | "loading" | "ready" | "error";
+    value?: string;
+    error?: string;
+  }>({ status: "idle" });
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { account, address, isConnected } = useAccount();
@@ -62,7 +67,63 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
   const receiverAddressValid = isValidStarknetAddress(receiverAddress);
   const feeTokenSymbol = creationFeeTokenSymbol;
   const feeAmount = Number.isFinite(creationFee) && creationFee > 0 ? creationFee : 0;
+  const feeAmountBaseUnits = useMemo(
+    () => parseTokenAmount(feeAmount, DEFAULT_PAYMENT_TOKEN.decimals),
+    [feeAmount],
+  );
   const paymentVerified = paymentStatus === "verified";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBalancePreview() {
+      if (!paymentRequired || !isConnected || !address) {
+        setBalancePreview({ status: "idle" });
+        return;
+      }
+
+      try {
+        setBalancePreview({ status: "loading" });
+        const balance = await getPaymentTokenBalance(
+          provider.provider,
+          address,
+          DEFAULT_PAYMENT_TOKEN.address,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setBalancePreview({
+          status: "ready",
+          value: `${formatTokenAmount(balance, DEFAULT_PAYMENT_TOKEN.decimals)} ${DEFAULT_PAYMENT_TOKEN.symbol}`,
+        });
+      } catch (balanceError) {
+        if (cancelled) {
+          return;
+        }
+
+        setBalancePreview({
+          status: "error",
+          error:
+            balanceError instanceof Error
+              ? balanceError.message
+              : "Unable to load balance preview.",
+        });
+      }
+    }
+
+    void loadBalancePreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    address,
+    isConnected,
+    paymentRequired,
+    provider.provider,
+  ]);
 
   async function generateProfile() {
     setGeneratingProfile(true);
@@ -130,8 +191,6 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
     }
 
     setPaymentStatus("paying");
-
-    const feeAmountBaseUnits = parseTokenAmount(feeAmount, DEFAULT_PAYMENT_TOKEN.decimals);
 
     try {
       const balance = await getPaymentTokenBalance(provider.provider, address, DEFAULT_PAYMENT_TOKEN.address);
@@ -472,6 +531,39 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
         </div>
       ) : null}
 
+      {paymentRequired ? (
+        <div className="mt-4 border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-200">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">
+            Publish debug
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <DebugRow label="Connected wallet" value={address ?? "Not connected"} mono />
+            <DebugRow
+              label="Token contract"
+              value={DEFAULT_PAYMENT_TOKEN.address}
+              mono
+            />
+            <DebugRow
+              label="Fee units"
+              value={feeAmountBaseUnits.toString()}
+              mono
+            />
+            <DebugRow
+              label="Balance check"
+              value={
+                balancePreview.status === "ready"
+                  ? balancePreview.value || "Available"
+                  : balancePreview.status === "loading"
+                    ? "Loading..."
+                    : balancePreview.status === "error"
+                      ? balancePreview.error || "Unavailable"
+                      : "Connect wallet to check"
+              }
+            />
+          </div>
+        </div>
+      ) : null}
+
       {success ? (
         <div className="mt-6 border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
           {success}
@@ -547,12 +639,46 @@ function Field({
   );
 }
 
+function DebugRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">{label}</p>
+      <p className={`mt-2 text-sm text-white ${mono ? "font-mono break-all text-xs" : ""}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
 function slugify(value: string) {
   return value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function formatTokenAmount(raw: bigint, decimals: number) {
+  const negative = raw < BigInt(0);
+  const absolute = negative ? -raw : raw;
+  const base = BigInt(10) ** BigInt(decimals);
+  const whole = absolute / base;
+  const fraction = absolute % base;
+
+  if (fraction === BigInt(0)) {
+    return `${negative ? "-" : ""}${whole.toString()}`;
+  }
+
+  const fractionText = fraction.toString().padStart(decimals, "0").replace(/0+$/, "");
+  return `${negative ? "-" : ""}${whole.toString()}.${fractionText}`;
 }
 
 function initialFormState(initialAgent?: Agent | null) {
