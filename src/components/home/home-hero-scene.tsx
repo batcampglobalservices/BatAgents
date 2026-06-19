@@ -125,9 +125,9 @@ function AgentNodeNetwork() {
 
 export default function HomeHeroScene() {
   return (
-    <div className="h-full min-h-[360px] w-full">
+    <div className="h-full min-h-[420px] w-full">
       <Canvas
-        camera={{ position: [0, 0.35, 6.2], fov: 47 }}
+        camera={{ position: [0, 0.28, 5.45], fov: 44 }}
         dpr={[1, 1.5]}
         gl={{
           alpha: true,

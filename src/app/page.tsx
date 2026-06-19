@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import HomeHeroSceneClient from "@/components/home/home-hero-scene-client";
 import CursorReactiveBackground from "@/components/home/cursor-reactive-background";
+import HeroMessageCarousel from "@/components/home/hero-message-carousel";
 import ScrollReveal from "@/components/home/scroll-reveal";
 import { getListedAgents } from "@/lib/db/agents";
 import { cn } from "@/lib/utils";
@@ -143,7 +145,7 @@ export default async function Home() {
   ).length;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
+    <main className="relative min-h-screen overflow-x-hidden bg-[#030712] text-white">
       <CursorReactiveBackground />
       <div className="relative z-10">
         <section className="relative isolate min-h-screen overflow-hidden border-b border-white/10">
@@ -193,27 +195,94 @@ export default async function Home() {
             </Link>
           </header>
 
-          <div className="mx-auto grid min-h-[calc(100vh-92px)] max-w-7xl items-center gap-12 px-5 pb-16 pt-8 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-10">
-            <div className="relative z-10 max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#c4b5fd] shadow-[0_0_35px_rgba(139,92,246,0.12)]">
-                <span className="h-2 w-2 rounded-full bg-[#38bdf8] shadow-[0_0_18px_#38bdf8]" />
-                OG-powered AI agent marketplace
+          <div className="mx-auto grid min-h-[calc(100vh-92px)] max-w-7xl gap-8 px-5 pb-16 pt-6 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)_minmax(0,0.72fr)] lg:items-center lg:px-8 lg:py-10">
+            <div className="order-1 lg:col-start-2">
+              <div className="relative mx-auto w-full max-w-[980px]">
+                <div className="absolute inset-0 -z-10 rounded-[3rem] bg-[radial-gradient(circle_at_50%_42%,rgba(139,92,246,0.28),transparent_28%),radial-gradient(circle_at_50%_58%,rgba(56,189,248,0.12),transparent_42%)] blur-3xl" />
+                <div className="relative overflow-hidden rounded-[3rem] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] p-3 shadow-[0_28px_100px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:p-5">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_34%,rgba(139,92,246,0.16),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(56,189,248,0.1),transparent_36%)]" />
+                  <div className="relative min-h-[560px] overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#050816]/70 sm:min-h-[640px] lg:min-h-[700px]">
+                    <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 lg:block">
+                      {heroAgents.map((agent, index) => (
+                        <div
+                          key={agent.title}
+                          className="hero-orbit absolute left-1/2 top-1/2"
+                          style={
+                            {
+                              ["--orbit-radius" as string]:
+                                index === 0
+                                  ? "300px"
+                                  : index === 1
+                                    ? "360px"
+                                    : index === 2
+                                      ? "330px"
+                                      : "390px",
+                              animationDuration:
+                                index === 0
+                                  ? "24s"
+                                  : index === 1
+                                    ? "30s"
+                                    : index === 2
+                                      ? "28s"
+                                      : "34s",
+                              animationDelay:
+                                index === 0
+                                  ? "-2s"
+                                  : index === 1
+                                    ? "-8s"
+                                    : index === 2
+                                      ? "-12s"
+                                      : "-16s",
+                          } as CSSProperties
+                          }
+                        >
+                          <div className="w-[220px]">
+                            <HeroFloatCard {...agent} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="relative w-full max-w-[960px] scale-[1.04] sm:scale-[1.06]">
+                        <HomeHeroSceneClient />
+                      </div>
+                    </div>
+
+                    <div className="absolute left-1/2 top-6 z-10 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#8b5cf6]/25 bg-[#050816]/75 px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-[#c4b5fd] backdrop-blur-xl">
+                      <span className="h-2 w-2 rounded-full bg-[#38bdf8] shadow-[0_0_18px_#38bdf8]" />
+                      OG-powered AI agent marketplace
+                    </div>
+
+                    <div className="absolute inset-x-4 bottom-4 z-10 grid gap-3 sm:grid-cols-4 sm:inset-x-5">
+                      {[
+                        { label: "Agents", value: `${agents.length}` },
+                        { label: "Minted", value: `${mintedCount}` },
+                        { label: "Marketplace", value: "Open" },
+                        { label: "Testnet", value: "Ready" },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-2xl border border-white/10 bg-[#030712]/80 px-4 py-3 text-center backdrop-blur-xl"
+                        >
+                          <p className="text-base font-semibold text-[#c4d7ff]">
+                            {item.value}
+                          </p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                            {item.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
+            </div>
 
-              <h1 className="mt-7 max-w-3xl text-[3.25rem] font-semibold leading-[0.92] tracking-[-0.06em] text-white sm:text-[4.7rem] lg:text-[5.2rem]">
-                Mint AI Agents. Own Them.{" "}
-                <span className="bg-gradient-to-r from-[#c4b5fd] via-[#8b5cf6] to-[#38bdf8] bg-clip-text text-transparent">
-                  Monetize Intelligence.
-                </span>
-              </h1>
+            <div className="order-2 space-y-6 lg:col-start-1 lg:order-none">
+              <HeroMessageCarousel />
 
-              <p className="mt-6 max-w-xl text-base leading-8 text-slate-300 sm:text-lg">
-                Bat Agents is an OG-powered marketplace where creators turn AI
-                agents into ownable digital assets, list them for users, and
-                earn from real usage.
-              </p>
-
-              <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <Link
                   href="/marketplace"
                   className="group inline-flex items-center justify-center gap-3 rounded-2xl bg-[linear-gradient(135deg,#8b5cf6,#5b7cfa_55%,#38bdf8)] px-6 py-4 text-sm font-semibold text-white shadow-[0_22px_55px_rgba(91,124,250,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_70px_rgba(91,124,250,0.45)]"
@@ -230,11 +299,17 @@ export default async function Home() {
                 </Link>
               </div>
 
-              <div className="mt-10 grid max-w-xl grid-cols-3 gap-3">
+              <p className="max-w-xl text-sm leading-7 text-slate-300">
+                Bat Agents is a 0G-powered AI agent marketplace where creators
+                publish ownable workers, buyers hire them through Starknet
+                Sepolia, and proofs of work stay verifiable.
+              </p>
+
+              <div className="grid max-w-xl grid-cols-3 gap-3">
                 {[
                   { label: "Listed Agents", value: agents.length },
                   { label: "Minted", value: mintedCount },
-                  { label: "Network", value: "OG" },
+                  { label: "0G", value: "Proof Layer" },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -251,50 +326,52 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="relative min-h-[560px] lg:min-h-[650px]">
-              <div className="absolute inset-0 rounded-[2.25rem] border border-white/10 bg-white/[0.035] shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl" />
-              <div className="absolute inset-0 rounded-[2.25rem] bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,246,0.22),transparent_29%),radial-gradient(circle_at_50%_55%,rgba(56,189,248,0.13),transparent_40%)]" />
-              <div className="absolute inset-0 opacity-95">
-                <HomeHeroSceneClient />
-              </div>
-
-              <div className="absolute left-5 top-6 hidden w-[225px] rounded-2xl border border-white/10 bg-[#07111f]/75 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl sm:block lg:left-8">
-                <HeroFloatCard {...heroAgents[0]} />
-              </div>
-              <div className="absolute right-5 top-14 hidden w-[225px] rounded-2xl border border-white/10 bg-[#07111f]/75 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl md:block lg:right-8">
-                <HeroFloatCard {...heroAgents[1]} />
-              </div>
-              <div className="absolute bottom-28 left-7 hidden w-[225px] rounded-2xl border border-white/10 bg-[#07111f]/75 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl md:block">
-                <HeroFloatCard {...heroAgents[2]} />
-              </div>
-              <div className="absolute bottom-32 right-7 hidden w-[225px] rounded-2xl border border-white/10 bg-[#07111f]/75 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl lg:block">
-                <HeroFloatCard {...heroAgents[3]} />
-              </div>
-
-              <div className="absolute inset-x-4 bottom-5 rounded-3xl border border-white/10 bg-[#050816]/80 p-4 backdrop-blur-2xl sm:inset-x-8 sm:p-5">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {[
-                    { label: "Agents", value: `${agents.length}` },
-                    { label: "Minted", value: `${mintedCount}` },
-                    { label: "Marketplace", value: "Open" },
-                    { label: "Testnet", value: "Ready" },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="rounded-2xl bg-white/[0.04] px-4 py-3 text-center"
-                    >
-                      <p className="text-base font-semibold text-[#c4d7ff]">
-                        {item.value}
-                      </p>
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                        {item.label}
-                      </p>
-                    </div>
-                  ))}
+            <div className="order-3 hidden lg:block lg:col-start-3">
+              <div className="space-y-4 rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl">
+                <p className="text-[11px] uppercase tracking-[0.4em] text-slate-500">
+                  Universe status
+                </p>
+                <div className="space-y-3 text-sm leading-7 text-slate-300">
+                  <p>Carousel-driven hero messaging</p>
+                  <p>Centered 3D core and orbital agent cards</p>
+                  <p>0G proofs, Starknet payments, and Supabase data</p>
                 </div>
+              </div>
+              <div className="mt-4 rounded-[2rem] border border-white/10 bg-[#050816]/75 p-5 backdrop-blur-xl">
+                <p className="text-[11px] uppercase tracking-[0.4em] text-[#7dd3fc]">
+                  Focus
+                </p>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  Built for judges and creators who need a real marketplace
+                  flow, not a static landing page.
+                </p>
               </div>
             </div>
           </div>
+
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                .hero-orbit {
+                  animation-name: hero-orbit;
+                  animation-timing-function: linear;
+                  animation-iteration-count: infinite;
+                  will-change: transform;
+                }
+
+                @keyframes hero-orbit {
+                  from {
+                    transform: translate(-50%, -50%) rotate(0deg)
+                      translateX(var(--orbit-radius)) rotate(0deg);
+                  }
+                  to {
+                    transform: translate(-50%, -50%) rotate(360deg)
+                      translateX(var(--orbit-radius)) rotate(-360deg);
+                  }
+                }
+              `,
+            }}
+          />
         </section>
 
         <section className="border-b border-white/10 bg-[#030712]/80 px-5 py-8 sm:px-7">
