@@ -26,6 +26,7 @@ import {
   waitForStarknetTransaction,
 } from "@/lib/starknet-payments";
 import { getPaymentTokenBalance } from "@/lib/starknet-token";
+import { getStoredCreatedAgents } from "@/lib/created-agents";
 
 const defaultState = {
   name: "",
@@ -37,7 +38,13 @@ const defaultState = {
   prompt: "",
 };
 
-export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent | null }) {
+type CreateAgentFormProps = {
+  initialAgent?: Agent | null;
+  editSlug?: string;
+};
+
+export default function CreateAgentForm({ initialAgent, editSlug }: CreateAgentFormProps) {
+  const [resolvedAgent, setResolvedAgent] = useState<Agent | null>(initialAgent ?? null);
   const [form, setForm] = useState(() => initialFormState(initialAgent));
   const [generatingProfile, setGeneratingProfile] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
@@ -57,7 +64,7 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
   const { account, address, isConnected } = useAccount();
   const provider = useProvider();
 
-  const isEditing = Boolean(initialAgent);
+  const isEditing = Boolean(resolvedAgent || editSlug);
   const agentSlug = slugify(form.name || "draft-agent");
   const creationFee = Number(process.env.NEXT_PUBLIC_CREATE_AGENT_FEE?.trim() || "0");
   const creationFeeTokenSymbol =
@@ -72,6 +79,29 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
     [feeAmount],
   );
   const paymentVerified = paymentStatus === "verified";
+
+  useEffect(() => {
+    if (initialAgent) {
+      setResolvedAgent(initialAgent);
+      setForm(initialFormState(initialAgent));
+      return;
+    }
+
+    if (!editSlug) {
+      setResolvedAgent(null);
+      setForm(initialFormState(null));
+      return;
+    }
+
+    const localAgent = getStoredCreatedAgents().find(
+      (agent) => agent.slug === editSlug || agent.id === editSlug,
+    );
+
+    if (localAgent) {
+      setResolvedAgent(localAgent);
+      setForm(initialFormState(localAgent));
+    }
+  }, [editSlug, initialAgent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,7 +259,7 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
 
       await createTransactionRecord({
         id: `create-agent-fee-${tx.transaction_hash}`,
-        agentId: initialAgent?.id ?? agentSlug,
+        agentId: resolvedAgent?.id ?? agentSlug,
         agentName: form.name || "New Agent",
         buyerWallet: address,
         creatorWallet: receiverAddress,
@@ -268,20 +298,20 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
       }
 
       const createdAgent = {
-        id: initialAgent?.id ?? agentSlug,
-        slug: initialAgent?.slug ?? agentSlug,
+        id: resolvedAgent?.id ?? agentSlug,
+        slug: resolvedAgent?.slug ?? agentSlug,
         name: form.name || "New Agent",
         category: form.category,
         description: form.description || "AI-generated agent draft.",
         service: form.service || "Agent service",
         price: Number(form.price || "0"),
         currency: form.currency,
-        status: (initialAgent?.status === "unlisted" ? "unlisted" : "listed") as
+        status: (resolvedAgent?.status === "unlisted" ? "unlisted" : "listed") as
           | "listed"
           | "unlisted",
-        rating: initialAgent?.rating ?? 5,
-        completedJobs: initialAgent?.completedJobs ?? 0,
-        creator: initialAgent?.creator ?? "Creator",
+        rating: resolvedAgent?.rating ?? 5,
+        completedJobs: resolvedAgent?.completedJobs ?? 0,
+        creator: resolvedAgent?.creator ?? "Creator",
         creatorWallet: address,
         systemPrompt:
           form.prompt ||
@@ -297,8 +327,8 @@ export default function CreateAgentForm({ initialAgent }: { initialAgent?: Agent
                 "What can you help with first?",
                 "Can you give me a quick task plan?",
               ],
-        createdAt: initialAgent?.createdAt ?? now,
-        publishedAt: initialAgent?.publishedAt ?? now,
+        createdAt: resolvedAgent?.createdAt ?? now,
+        publishedAt: resolvedAgent?.publishedAt ?? now,
         zeroGProof: publishedProof ?? undefined,
       };
 
