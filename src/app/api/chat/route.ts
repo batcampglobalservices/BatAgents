@@ -5,6 +5,7 @@ import { getAgentReviews } from "@/lib/db/reviews";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { AgentCategory } from "@/types/agent";
 
 export const maxDuration = 30;
 
@@ -48,6 +49,21 @@ function normalizeAgent(agent: Partial<Agent> & Pick<Agent, "id" | "slug" | "nam
   };
 }
 
+function normalizeCategory(category: string | null | undefined): AgentCategory {
+  switch (category) {
+    case "Study":
+    case "Research":
+    case "Coding":
+    case "Writing":
+    case "Web3":
+    case "Design":
+      return category;
+    case "Business":
+    default:
+      return "Business";
+  }
+}
+
 async function fetchAgentFromSupabase(
   agentSlug?: string,
   agentId?: string,
@@ -80,7 +96,7 @@ async function fetchAgentFromSupabase(
         id: data.id,
         slug: data.slug,
         name: data.name,
-        category: data.category,
+        category: normalizeCategory(data.category),
         description: data.description,
         service: data.service,
         price: Number(data.price ?? 0),
@@ -135,7 +151,7 @@ async function fetchAgentFromSupabase(
         id: data.id,
         slug: data.slug,
         name: data.name,
-        category: data.category,
+        category: normalizeCategory(data.category),
         description: data.description,
         service: data.service,
         price: Number(data.price ?? 0),
