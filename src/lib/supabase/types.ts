@@ -30,11 +30,17 @@ export type Database = {
           description: string | null;
           service: string | null;
           system_prompt: string | null;
+          training_data: string | null;
           price: number | null;
           currency: string;
           creator_id: string | null;
           creator_wallet: string | null;
           status: string;
+          is_listed: boolean;
+          is_minted: boolean;
+          nft_token_id: string | null;
+          contract_address: string | null;
+          transaction_hash: string | null;
           zero_g_root_hash: string | null;
           zero_g_tx_hash: string | null;
           zero_g_url: string | null;
@@ -48,7 +54,6 @@ export type Database = {
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["agents"]["Row"]> & {
-          id: string;
           slug: string;
           name: string;
         };

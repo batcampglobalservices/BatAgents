@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as ChatRequestBody;
     const messages = body.messages ?? [];
     const requestedAgent = body.agent;
+    console.error("CHAT_ROUTE_ERROR", { messages: messages.length, hasAgent: Boolean(requestedAgent) });
 
     if (!messages.length) {
       return Response.json({ error: "Messages are required." }, { status: 400 });
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
         ? agents.find((entry) => entry.slug === requestedAgent.slug)
         : undefined) ??
       requestedAgent;
+
+    console.error("AGENT_SLUG", requestedAgent.slug ?? requestedAgent.id ?? null);
 
     const recentReviews = await getAgentReviews(selectedAgent.id, 5);
     const recentFeedback = recentReviews.length
@@ -82,7 +85,8 @@ export async function POST(request: Request) {
     return result.toUIMessageStreamResponse({
       onError: () => "The agent could not complete the response.",
     });
-  } catch {
+  } catch (error) {
+    console.error("CHAT_ROUTE_ERROR", error);
     return Response.json(
       { error: "Unable to process the chat request." },
       { status: 400 },

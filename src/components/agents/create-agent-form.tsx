@@ -9,7 +9,6 @@ import { uploadAgentMetadataTo0G } from "@/lib/0g";
 import ProofCard from "@/components/0g/proof-card";
 import type { ZeroGProof } from "@/types/0g";
 import {
-  createAgentRecord,
   updateAgent0GProof,
   updateAgentRecord,
 } from "@/lib/db/agents";
@@ -26,7 +25,12 @@ import {
   waitForStarknetTransaction,
 } from "@/lib/starknet-payments";
 import { getPaymentTokenBalance } from "@/lib/starknet-token";
-import { getStoredCreatedAgents } from "@/lib/created-agents";
+import {
+  getStoredCreatedAgents,
+  saveCreatedAgent,
+  type CreatedAgentRecord,
+} from "@/lib/created-agents";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const defaultState = {
   name: "",
@@ -297,80 +301,239 @@ export default function CreateAgentForm({ initialAgent, editSlug }: CreateAgentF
         setPaymentTxHash(feeTxHash);
       }
 
-      const createdAgent = {
-        id: resolvedAgent?.id ?? agentSlug,
-        slug: resolvedAgent?.slug ?? agentSlug,
+      const client = getSupabaseBrowserClient();
+
+      if (!client) {
+        throw new Error(
+          isSupabaseConfigured()
+            ? "Supabase browser client is not available in this environment."
+            : "Supabase is not configured.",
+        );
+      }
+
+      const authResult = await client.auth.getUser();
+      const userId = authResult.data.user?.id ?? null;
+      const userError = authResult.error;
+
+      console.log("CREATE_AGENT_SUPABASE_USER_ID", userId);
+
+      if (userError) {
+        console.error("CREATE_AGENT_SUPABASE_ERROR", userError);
+        throw new Error(userError.message);
+      }
+
+      if (!userId) {
+        throw new Error("Sign in to Supabase before creating an agent.");
+      }
+
+      const slug = resolvedAgent?.slug ?? slugify(form.name || "draft-agent");
+      console.log("CREATE_AGENT_GENERATED_SLUG", slug);
+
+      const payload = {
+        creator_id: userId,
+        creator_wallet: address,
         name: form.name || "New Agent",
+        slug,
         category: form.category,
         description: form.description || "AI-generated agent draft.",
         service: form.service || "Agent service",
         price: Number(form.price || "0"),
         currency: form.currency,
-        status: (resolvedAgent?.status === "unlisted" ? "unlisted" : "listed") as
-          | "listed"
-          | "unlisted",
-        rating: resolvedAgent?.rating ?? 5,
-        completedJobs: resolvedAgent?.completedJobs ?? 0,
-        creator: resolvedAgent?.creator ?? "Creator",
-        creatorWallet: address,
-        systemPrompt:
+        system_prompt:
           form.prompt ||
           "You are a focused BatAgents worker. Be practical, direct, and useful.",
-        sampleQuestions:
-          form.prompt.trim().length > 0
-            ? [
-                "What can you help with first?",
-                "Can you give me a quick task plan?",
-                "What should I ask next?",
-              ]
-            : [
-                "What can you help with first?",
-                "Can you give me a quick task plan?",
-              ],
-        createdAt: resolvedAgent?.createdAt ?? now,
-        publishedAt: resolvedAgent?.publishedAt ?? now,
-        zeroGProof: publishedProof ?? undefined,
+        training_data: form.prompt || null,
+        status: (resolvedAgent?.status ?? "draft") as Agent["status"],
+        is_listed: resolvedAgent?.isListed ?? (resolvedAgent?.status === "listed" || resolvedAgent?.status === "published"),
+        is_minted: resolvedAgent?.isMinted ?? Boolean(resolvedAgent?.onchainRegistrationTxHash),
+        nft_token_id: resolvedAgent?.nftTokenId ?? null,
+        contract_address: resolvedAgent?.contractAddress ?? null,
+        transaction_hash: resolvedAgent?.transactionHash ?? null,
+        zero_g_root_hash: resolvedAgent?.zeroGProof?.rootHash ?? null,
+        zero_g_tx_hash: resolvedAgent?.zeroGProof?.txHash ?? null,
+        zero_g_url: resolvedAgent?.zeroGProof?.url ?? null,
+        zero_g_mode: resolvedAgent?.zeroGProof?.mode ?? "demo",
+        zero_g_status: resolvedAgent?.zeroGProof ? "stored" : "pending",
+        zero_g_stored_at: resolvedAgent?.zeroGProof?.storedAt ?? null,
+        onchain_agent_id: resolvedAgent?.onchainAgentId ?? null,
+        onchain_registration_tx_hash: resolvedAgent?.onchainRegistrationTxHash ?? null,
+        onchain_registered: Boolean(
+          resolvedAgent?.onchainRegistrationTxHash || resolvedAgent?.isMinted,
+        ),
+        updated_at: now,
       };
 
+      console.log("CREATE_AGENT_SUPABASE_PAYLOAD", payload);
+
+      let savedAgent: Agent;
+
+      if (isEditing && resolvedAgent?.id) {
+        const { data: updatedAgent, error: updateError } = await client
+          .from("agents")
+          .update({
+            ...payload,
+          })
+          .eq("id", resolvedAgent.id)
+          .eq("creator_id", userId)
+          .select("*")
+          .single();
+
+        console.log("CREATE_AGENT_SUPABASE_RESULT", updatedAgent);
+        console.log("CREATE_AGENT_SUPABASE_ERROR", updateError);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        if (!updatedAgent) {
+          throw new Error("Supabase did not return the updated agent.");
+        }
+
+        savedAgent = {
+          id: updatedAgent.id,
+          slug: updatedAgent.slug,
+          name: updatedAgent.name,
+          category: (updatedAgent.category as AgentCategory) ?? form.category,
+          description: updatedAgent.description ?? form.description,
+          service: updatedAgent.service ?? form.service,
+          price: Number(updatedAgent.price ?? form.price ?? "0"),
+          currency: updatedAgent.currency === "ETH" ? "ETH" : "STRK",
+          rating: resolvedAgent.rating,
+          completedJobs: resolvedAgent.completedJobs,
+          creator: resolvedAgent.creator,
+          creatorWallet: address,
+          systemPrompt: updatedAgent.system_prompt ?? form.prompt,
+          trainingData: updatedAgent.training_data ?? form.prompt,
+          sampleQuestions: resolvedAgent.sampleQuestions,
+          createdAt: updatedAgent.created_at ?? now,
+          status:
+            updatedAgent.status === "listed" ||
+            updatedAgent.status === "published" ||
+            updatedAgent.status === "draft"
+              ? updatedAgent.status
+              : "draft",
+          isListed: Boolean(updatedAgent.is_listed),
+          isMinted: Boolean(updatedAgent.is_minted),
+          nftTokenId: updatedAgent.nft_token_id ?? undefined,
+          contractAddress: updatedAgent.contract_address ?? undefined,
+          transactionHash: updatedAgent.transaction_hash ?? undefined,
+          zeroGProof: undefined,
+          onchainAgentId: updatedAgent.onchain_agent_id ?? undefined,
+          onchainRegistrationTxHash:
+            updatedAgent.onchain_registration_tx_hash ?? undefined,
+          publishedAt: now,
+        };
+      } else {
+        const { data: insertedAgent, error: insertError } = await client
+          .from("agents")
+          .insert(payload)
+          .select("*")
+          .single();
+
+        console.log("CREATE_AGENT_SUPABASE_RESULT", insertedAgent);
+        console.log("CREATE_AGENT_SUPABASE_ERROR", insertError);
+
+        if (insertError) {
+          throw new Error(insertError.message);
+        }
+
+        if (!insertedAgent) {
+          throw new Error("Supabase did not return the inserted agent.");
+        }
+
+        savedAgent = {
+          id: insertedAgent.id,
+          slug: insertedAgent.slug,
+          name: insertedAgent.name,
+          category: (insertedAgent.category as AgentCategory) ?? form.category,
+          description: insertedAgent.description ?? form.description,
+          service: insertedAgent.service ?? form.service,
+          price: Number(insertedAgent.price ?? form.price ?? "0"),
+          currency: insertedAgent.currency === "ETH" ? "ETH" : "STRK",
+          rating: resolvedAgent?.rating ?? 5,
+          completedJobs: resolvedAgent?.completedJobs ?? 0,
+          creator: resolvedAgent?.creator ?? "Creator",
+          creatorWallet: address,
+          systemPrompt:
+            insertedAgent.system_prompt ||
+            form.prompt ||
+            "You are a focused BatAgents worker. Be practical, direct, and useful.",
+          trainingData: insertedAgent.training_data ?? form.prompt,
+          sampleQuestions:
+            form.prompt.trim().length > 0
+              ? [
+                  "What can you help with first?",
+                  "Can you give me a quick task plan?",
+                  "What should I ask next?",
+                ]
+              : [
+                  "What can you help with first?",
+                  "Can you give me a quick task plan?",
+                ],
+          createdAt: insertedAgent.created_at ?? now,
+          publishedAt: now,
+          status:
+            insertedAgent.status === "listed" ||
+            insertedAgent.status === "published" ||
+            insertedAgent.status === "draft"
+              ? insertedAgent.status
+              : "draft",
+          isListed: Boolean(insertedAgent.is_listed),
+          isMinted: Boolean(insertedAgent.is_minted),
+          contractAddress: insertedAgent.contract_address ?? undefined,
+          nftTokenId: insertedAgent.nft_token_id ?? undefined,
+          transactionHash: insertedAgent.transaction_hash ?? undefined,
+          zeroGProof: undefined,
+          onchainAgentId: insertedAgent.onchain_agent_id ?? undefined,
+          onchainRegistrationTxHash:
+            insertedAgent.onchain_registration_tx_hash ?? undefined,
+        };
+      }
+
+      console.log("CREATE_AGENT_CREATED_AGENT_ID", savedAgent.id);
+
       const proof = await uploadAgentMetadataTo0G({
-        agentId: createdAgent.id,
-        agentName: createdAgent.name,
-        creatorWallet: createdAgent.creatorWallet,
-        category: createdAgent.category,
-        service: createdAgent.service,
-        description: createdAgent.description,
-        systemPrompt: createdAgent.systemPrompt,
-        sampleQuestions: createdAgent.sampleQuestions,
+        agentId: savedAgent.id,
+        agentName: savedAgent.name,
+        creatorWallet: savedAgent.creatorWallet,
+        category: savedAgent.category,
+        service: savedAgent.service,
+        description: savedAgent.description,
+        systemPrompt: savedAgent.systemPrompt,
+        sampleQuestions: savedAgent.sampleQuestions,
         publishedAt: now,
       });
 
       setPublishedProof(proof);
 
-      if (isEditing) {
-        await updateAgentRecord(createdAgent.id, {
-          name: createdAgent.name,
-          category: createdAgent.category,
-          description: createdAgent.description,
-          service: createdAgent.service,
-          price: createdAgent.price,
-          currency: createdAgent.currency,
-          systemPrompt: createdAgent.systemPrompt,
-          status: createdAgent.status,
+      if (isEditing && resolvedAgent?.id) {
+        await updateAgentRecord(savedAgent.id, {
+          name: savedAgent.name,
+          category: savedAgent.category,
+          description: savedAgent.description,
+          service: savedAgent.service,
+          price: savedAgent.price,
+          currency: savedAgent.currency,
+          systemPrompt: savedAgent.systemPrompt,
+          trainingData: savedAgent.trainingData,
+          status: savedAgent.status,
         });
       } else {
-        await createAgentRecord({
-          ...createdAgent,
+        saveCreatedAgent({
+          ...savedAgent,
           zeroGProof: proof,
-        });
+          publishedAt: now,
+        } as CreatedAgentRecord);
       }
 
-      await updateAgent0GProof(createdAgent.id, proof);
-      setPublishedAgentId(createdAgent.id);
+      await updateAgent0GProof(savedAgent.id, proof);
+
+      setPublishedAgentId(savedAgent.id);
       const verifiedPaymentTxHash = feeTxHash ?? paymentTxHash;
       setSuccess(
         paymentRequired && verifiedPaymentTxHash
-          ? "Payment verified and agent saved. Buyer feedback and chat history will refine future responses."
-          : "Agent saved. Buyer feedback and chat history will refine future responses.",
+          ? "Payment verified and agent draft saved to Supabase. List it from the creator dashboard when ready."
+          : "Agent draft saved to Supabase. List it from the creator dashboard when ready.",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to publish agent.");

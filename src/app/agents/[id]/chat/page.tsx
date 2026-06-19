@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import AgentRouteView from "@/components/agents/agent-route-view";
 import { getAgentBySlug } from "@/lib/db/agents";
 
@@ -13,8 +14,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: AgentChatPageProps): Promise<Metadata> {
-  const { id } = await params;
-  const agent = await getAgentBySlug(id);
+  const { id: slug } = await params;
+  const agent = await getAgentBySlug(slug);
 
   return {
     title: agent ? `${agent.name} Chat` : "Agent Chat",
@@ -24,8 +25,12 @@ export async function generateMetadata({
 }
 
 export default async function AgentChatPage({ params }: AgentChatPageProps) {
-  const { id } = await params;
-  const agent = await getAgentBySlug(id);
+  const { id: slug } = await params;
+  const agent = await getAgentBySlug(slug, { includeUnlisted: true });
+
+  if (!agent) {
+    notFound();
+  }
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -42,7 +47,7 @@ export default async function AgentChatPage({ params }: AgentChatPageProps) {
         </p>
       </div>
 
-      <AgentRouteView agentId={id} mode="chat" initialAgent={agent ?? null} />
+      <AgentRouteView agentId={slug} mode="chat" initialAgent={agent} />
     </section>
   );
 }

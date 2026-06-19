@@ -6,7 +6,7 @@ import { ArrowUpRight, CircleOff, MessageSquareText, Sparkles } from "lucide-rea
 import { useAccount, useProvider } from "@starknet-react/core";
 import { toast } from "sonner";
 import type { Agent } from "@/types/agent";
-import { isContractConfigured } from "@/lib/contracts";
+import { BATAGENTS_CONTRACT_ADDRESS, isContractConfigured } from "@/lib/contracts";
 import { registerAgentOnchain } from "@/lib/starknet-contract";
 import { waitForStarknetTransaction } from "@/lib/starknet-payments";
 import {
@@ -147,7 +147,11 @@ export default function AgentTable({ agents }: AgentTableProps) {
                       );
                     }
 
-                    await updateAgentOnchainRegistration(agent.id, txHash);
+                    await updateAgentOnchainRegistration(agent.id, txHash, {
+                      contractAddress: BATAGENTS_CONTRACT_ADDRESS,
+                      nftTokenId: agent.onchainAgentId ?? agent.id,
+                      status: "listed",
+                    });
                     toast.success("Agent minted on Starknet Sepolia.", { id: loadingToast });
                   } catch (error) {
                     toast.error(

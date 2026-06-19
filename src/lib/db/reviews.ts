@@ -14,20 +14,30 @@ async function getSupabaseClient() {
 }
 
 export async function getAgentReviews(agentId: string, limit = 5) {
-  const client = await getSupabaseClient();
+  try {
+    const client = await getSupabaseClient();
 
-  if (!client) {
+    if (!client) {
+      return [];
+    }
+
+    const { data, error } = await client
+      .from("reviews")
+      .select("*")
+      .eq("agent_id", agentId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("SUPABASE_AGENT_REVIEW_ERROR", error);
+      return [];
+    }
+
+    return data ?? [];
+  } catch (error) {
+    console.error("SUPABASE_AGENT_REVIEW_ERROR", error);
     return [];
   }
-
-  const { data } = await client
-    .from("reviews")
-    .select("*")
-    .eq("agent_id", agentId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  return data ?? [];
 }
 
 export async function createReviewRecord(review: StoredReview) {

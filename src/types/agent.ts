@@ -23,9 +23,15 @@ export type Agent = {
   creator: string;
   creatorWallet: string;
   systemPrompt: string;
+  trainingData?: string;
   sampleQuestions: string[];
   createdAt: string;
-  status?: "draft" | "listed" | "unlisted";
+  status?: "draft" | "listed" | "published" | "unlisted";
+  isListed?: boolean;
+  isMinted?: boolean;
+  nftTokenId?: string;
+  contractAddress?: string;
+  transactionHash?: string;
   zeroGProof?: ZeroGProof;
   onchainAgentId?: string;
   onchainRegistrationTxHash?: string;

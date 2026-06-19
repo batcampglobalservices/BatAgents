@@ -10,18 +10,24 @@ create table if not exists public.profiles (
 );
 
 create table if not exists public.agents (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   slug text unique not null,
   name text not null,
   category text,
   description text,
   service text,
   system_prompt text,
+  training_data text,
   price numeric,
   currency text not null default 'ETH',
   creator_id uuid references public.profiles(id),
   creator_wallet text,
   status text not null default 'draft',
+  is_listed boolean not null default false,
+  is_minted boolean not null default false,
+  nft_token_id text,
+  contract_address text,
+  transaction_hash text,
   zero_g_root_hash text,
   zero_g_tx_hash text,
   zero_g_url text,
@@ -143,15 +149,20 @@ alter table public.proof_events enable row level security;
 
 create policy "Public read agents"
 on public.agents for select
-using (status = 'listed');
+using (is_listed = true or status in ('listed', 'published'));
 
 create policy "Authenticated insert agents"
 on public.agents for insert
 to authenticated
-with check (true);
+with check (creator_id = auth.uid());
 
 create policy "Authenticated update own agents"
 on public.agents for update
+to authenticated
+using (creator_id = auth.uid());
+
+create policy "Authenticated read own agents"
+on public.agents for select
 to authenticated
 using (creator_id = auth.uid());
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import AgentMarketplaceBrowser from "@/components/marketplace/agent-marketplace-browser";
 import PageHeader from "@/components/ui/page-header";
-import { getAgents } from "@/lib/db/agents";
+import { getListedAgents } from "@/lib/db/agents";
 
 export const metadata: Metadata = {
   title: "Marketplace",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MarketplacePage() {
-  const initialAgents = await getAgents();
+  const initialAgents = await getListedAgents();
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -21,7 +21,7 @@ export default async function MarketplacePage() {
       />
 
       <div className="mt-8">
-        <AgentMarketplaceBrowser staticAgents={initialAgents} />
+        <AgentMarketplaceBrowser agents={initialAgents} />
       </div>
     </section>
   );

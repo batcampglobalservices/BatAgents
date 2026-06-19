@@ -1,46 +1,40 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import { ArrowUpDown, Search } from "lucide-react";
 import type { Agent } from "@/types/agent";
 import AgentCard from "@/components/agents/agent-card";
 import StatusBadge from "@/components/ui/status-badge";
-import {
-  getStoredCreatedAgentsSnapshot,
-  mergePublishedAgents,
-  subscribeCreatedAgentsStore,
-} from "@/lib/created-agents";
 
 type AgentMarketplaceBrowserProps = {
-  staticAgents: Agent[];
+  agents: Agent[];
 };
 
 type SortKey = "newest" | "rating" | "price";
 
 export default function AgentMarketplaceBrowser({
-  staticAgents,
+  agents,
 }: AgentMarketplaceBrowserProps) {
-  useSyncExternalStore(subscribeCreatedAgentsStore, getStoredCreatedAgentsSnapshot, () => "[]");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [onchainOnly, setOnchainOnly] = useState(false);
   const [proofOnly, setProofOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("newest");
 
-  const agents = useMemo(
-    () => mergePublishedAgents(staticAgents),
-    [staticAgents],
+  const marketplaceAgents = useMemo(
+    () => agents,
+    [agents],
   );
 
   const categories = useMemo(
-    () => ["All", ...new Set(agents.map((agent) => agent.category))],
-    [agents],
+    () => ["All", ...new Set(marketplaceAgents.map((agent) => agent.category))],
+    [marketplaceAgents],
   );
 
   const filteredAgents = useMemo(() => {
     const search = query.trim().toLowerCase();
 
-    return [...agents]
+    return [...marketplaceAgents]
       .filter((agent) => agent.status !== "unlisted")
       .filter((agent) => {
         const matchesQuery =
@@ -66,7 +60,7 @@ export default function AgentMarketplaceBrowser({
 
         return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
       });
-  }, [agents, category, onchainOnly, proofOnly, query, sortBy]);
+  }, [category, marketplaceAgents, onchainOnly, proofOnly, query, sortBy]);
 
   return (
     <div className="space-y-6">
