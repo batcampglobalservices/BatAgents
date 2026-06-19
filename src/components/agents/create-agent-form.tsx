@@ -326,7 +326,13 @@ export default function CreateAgentForm({ initialAgent, editSlug }: CreateAgentF
         throw new Error("Sign in to Supabase before creating an agent.");
       }
 
-      const slug = resolvedAgent?.slug ?? slugify(form.name || "draft-agent");
+      const slug = isEditing && resolvedAgent?.slug
+        ? resolvedAgent.slug
+        : await generateUniqueAgentSlug(
+            client,
+            slugify(form.name || "draft-agent"),
+            null,
+          );
       console.log("CREATE_AGENT_GENERATED_SLUG", slug);
 
       const payload = {
@@ -424,11 +430,13 @@ export default function CreateAgentForm({ initialAgent, editSlug }: CreateAgentF
           publishedAt: now,
         };
       } else {
-        const { data: insertedAgent, error: insertError } = await client
-          .from("agents")
-          .insert(payload)
-          .select("*")
-          .single();
+        const insertResult = await insertAgentWithUniqueSlugRetry(
+          client,
+          payload,
+          slug,
+        );
+
+        const { data: insertedAgent, error: insertError } = insertResult;
 
         console.log("CREATE_AGENT_SUPABASE_RESULT", insertedAgent);
         console.log("CREATE_AGENT_SUPABASE_ERROR", insertError);
@@ -857,6 +865,87 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+async function generateUniqueAgentSlug(
+  client: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+  baseSlug: string,
+  excludeAgentId: string | null,
+) {
+  const normalizedBase = slugify(baseSlug || "draft-agent");
+  const isAvailable = async (candidate: string) => {
+    const { data, error } = await client
+      .from("agents")
+      .select("id, slug")
+      .eq("slug", candidate)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      return true;
+    }
+
+    return excludeAgentId ? data.id === excludeAgentId : false;
+  };
+
+  if (await isAvailable(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  for (let suffix = 2; suffix <= 12; suffix += 1) {
+    const candidate = `${normalizedBase}-${suffix}`;
+    if (await isAvailable(candidate)) {
+      return candidate;
+    }
+  }
+
+  const randomSuffix = Math.random().toString(36).slice(2, 6);
+  const fallback = `${normalizedBase}-${randomSuffix}`;
+  if (await isAvailable(fallback)) {
+    return fallback;
+  }
+
+  return `${normalizedBase}-${Date.now().toString(36).slice(-4)}`;
+}
+
+async function insertAgentWithUniqueSlugRetry(
+  client: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+  payload: { name: string } & Record<string, unknown>,
+  baseSlug: string,
+) {
+  const attemptInsert = async (candidateSlug: string) =>
+    client.from("agents").insert({ ...payload, slug: candidateSlug }).select("*").single();
+
+  let currentSlug = baseSlug;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const result = await attemptInsert(currentSlug);
+
+    if (!result.error) {
+      return result;
+    }
+
+    const message = result.error.message.toLowerCase();
+    const isDuplicateSlug =
+      message.includes("agents_slug_key") ||
+      message.includes("duplicate key value") ||
+      message.includes("duplicate");
+
+    if (!isDuplicateSlug) {
+      return result;
+    }
+
+    currentSlug = await generateUniqueAgentSlug(
+      client,
+      `${baseSlug}-${attempt + 2}`,
+      null,
+    );
+  }
+
+  return attemptInsert(`${baseSlug}-${Math.random().toString(36).slice(2, 6)}`);
 }
 
 function formatTokenAmount(raw: bigint, decimals: number) {
