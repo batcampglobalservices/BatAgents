@@ -71,9 +71,10 @@ function rowToAgent(row: AgentRow): Agent {
     currency: row.currency === "ETH" ? "ETH" : "STRK",
     rating: 5,
     completedJobs: 0,
-    creator: row.creator_wallet ? "Supabase Creator" : "Batcamp Studio",
-    creatorWallet: row.creator_wallet ?? "",
-    systemPrompt: row.system_prompt ?? "",
+  creator: row.creator_wallet ? "Supabase Creator" : "Batcamp Studio",
+  creatorWallet: row.creator_wallet ?? "",
+  creatorId: row.creator_id ?? undefined,
+  systemPrompt: row.system_prompt ?? "",
     trainingData: row.training_data ?? undefined,
     sampleQuestions: [],
     createdAt: row.created_at ?? new Date().toISOString(),
@@ -185,9 +186,11 @@ export async function getAgentBySlug(
       .from("agents")
       .select("*")
       .eq("slug", normalized)
-      .single();
+      .maybeSingle();
 
-    console.error("SUPABASE_AGENT_RESULT", { slug: normalized, data });
+    console.error("CHAT_AGENT_SLUG", normalized);
+    console.error("CHAT_AGENT_DATA", data);
+    console.error("CHAT_AGENT_ERROR", error);
 
     if (error) {
       console.error("SUPABASE_AGENT_ERROR", error);

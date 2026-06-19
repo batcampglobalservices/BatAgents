@@ -22,6 +22,7 @@ export type Agent = {
   completedJobs: number;
   creator: string;
   creatorWallet: string;
+  creatorId?: string;
   systemPrompt: string;
   trainingData?: string;
   sampleQuestions: string[];

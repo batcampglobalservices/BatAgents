@@ -17,6 +17,7 @@ import {
   isContractConfigured,
   isPaymentTokenConfigured,
 } from "@/lib/contracts";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import ProofCard from "@/components/0g/proof-card";
 import ChatInput from "./chat-input";
 import ChatMessage from "./chat-message";
@@ -49,11 +50,74 @@ export default function AgentChat({ agent }: AgentChatProps) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [checkingHireStatus, setCheckingHireStatus] = useState(false);
   const [hireStatusError, setHireStatusError] = useState<string | null>(null);
+  const [accessNote, setAccessNote] = useState<string | null>(null);
+  const [creatorAccessGranted, setCreatorAccessGranted] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [taskProof, setTaskProof] = useState<TaskProof | null>(null);
   const [savingProof, setSavingProof] = useState(false);
   const initialMessages = useMemo(() => createInitialMessages(agent), [agent]);
   const onchainAgentId = agent.onchainAgentId ?? agent.slug;
+  const safeSystemPrompt = agent.systemPrompt?.trim() || "You are a helpful AI agent.";
+  const safeTrainingData = agent.trainingData?.trim() || "";
+  const demoAccessAllowed = Boolean(
+    (agent.isMinted || agent.onchainRegistrationTxHash) &&
+      (agent.isListed || agent.status === "listed" || agent.status === "published"),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncCreatorAccess() {
+      if (!isSupabaseConfigured()) {
+        if (demoAccessAllowed && !cancelled) {
+          setIsUnlocked(true);
+          setAccessNote("Demo access enabled for this listed and minted agent.");
+        }
+        return;
+      }
+
+      const client = getSupabaseBrowserClient();
+
+      if (!client) {
+        if (demoAccessAllowed && !cancelled) {
+          setIsUnlocked(true);
+          setAccessNote("Demo access enabled for this listed and minted agent.");
+        }
+        return;
+      }
+
+      const { data } = await client.auth.getUser();
+      const userId = data.user?.id ?? null;
+
+      if (cancelled) {
+        return;
+      }
+
+      if (userId && agent.creatorId && userId === agent.creatorId) {
+        setCreatorAccessGranted(true);
+        setIsUnlocked(true);
+        setHireStatusError(null);
+        setAccessNote("Creator access granted.");
+        return;
+      }
+
+      if (demoAccessAllowed) {
+        setIsUnlocked(true);
+        setHireStatusError(null);
+        setAccessNote("Demo access enabled for this listed and minted agent.");
+        return;
+      }
+
+      setCreatorAccessGranted(false);
+      setAccessNote(null);
+    }
+
+    void syncCreatorAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [agent.creatorId, demoAccessAllowed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +161,14 @@ export default function AgentChat({ agent }: AgentChatProps) {
       setHireStatusError(null);
 
       try {
+        if (demoAccessAllowed || creatorAccessGranted) {
+          if (!cancelled) {
+            setIsUnlocked(true);
+            setHireStatusError(null);
+          }
+          return;
+        }
+
         const providerForReads = provider.provider;
         const hired = await hasUserHiredAgentOnchain({
           provider: providerForReads,
@@ -129,12 +201,12 @@ export default function AgentChat({ agent }: AgentChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [account, address, agent.onchainAgentId, agent.onchainRegistrationTxHash, agent.slug, onchainAgentId, provider]);
+  }, [account, address, agent.onchainAgentId, agent.onchainRegistrationTxHash, agent.slug, onchainAgentId, provider, creatorAccessGranted, demoAccessAllowed]);
 
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      body: { agent },
+      body: { agentSlug: agent.slug, agentId: agent.id, agent },
     }),
     messages: initialMessages,
   });
@@ -147,20 +219,21 @@ export default function AgentChat({ agent }: AgentChatProps) {
   }
 
   async function saveTaskProof() {
-    if (!address) {
-      setHireStatusError("Connect your wallet before saving a task proof.");
-      return;
-    }
-
-    setSavingProof(true);
-
-    try {
-      const paymentRecord = await getLatestTransactionForAgentBuyer(agent.id, address);
-      const completedAt = new Date().toISOString();
-
-      if (!paymentRecord?.txHash) {
-        throw new Error("No confirmed payment transaction was found for this agent.");
+      if (!address) {
+        setHireStatusError("Connect your wallet before saving a task proof.");
+        return;
       }
+
+      setSavingProof(true);
+
+      try {
+        const paymentRecord = await getLatestTransactionForAgentBuyer(agent.id, address);
+        const completedAt = new Date().toISOString();
+
+        if (!paymentRecord?.txHash) {
+          setHireStatusError("Hire this agent to start chatting.");
+          return;
+        }
 
       const latestAssistantMessage = [...messages].reverse().find((message) => {
         return message.role === "assistant";
@@ -204,10 +277,10 @@ export default function AgentChat({ agent }: AgentChatProps) {
         proofRootHash: storedProof.rootHash,
         completedAt: storedProof.storedAt,
       }, storedProof);
-    } finally {
-      setSavingProof(false);
+      } finally {
+        setSavingProof(false);
+      }
     }
-  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -222,6 +295,11 @@ export default function AgentChat({ agent }: AgentChatProps) {
               <p className="mt-2 text-sm text-slate-300">
                 {agent.category} · {agent.service} · {agent.currency} {agent.price}
               </p>
+              {accessNote ? (
+                <p className="mt-2 text-xs uppercase tracking-[0.22em] text-cyan-300">
+                  {accessNote}
+                </p>
+              ) : null}
             </div>
             <span
               className={cn(
@@ -277,11 +355,12 @@ export default function AgentChat({ agent }: AgentChatProps) {
               Chat is locked until the contract confirms your hire.
             </p>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Connect a Starknet wallet and complete the Sepolia testnet hire on the
-              right to unlock this agent workspace.
+              {demoAccessAllowed
+                ? "This agent is listed and minted, so demo access is enabled while testnet flows are being validated."
+                : "Connect a Starknet wallet and complete the Sepolia testnet hire on the right to unlock this agent workspace."}
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {agent.sampleQuestions.slice(0, 2).map((question) => (
+              {(agent.sampleQuestions?.slice(0, 2) ?? []).map((question) => (
                 <button
                   key={question}
                   type="button"
@@ -310,7 +389,7 @@ export default function AgentChat({ agent }: AgentChatProps) {
             Suggested prompts
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            {agent.sampleQuestions.map((question) => (
+            {(agent.sampleQuestions ?? []).map((question) => (
               <button
                 key={question}
                 type="button"
@@ -339,7 +418,10 @@ export default function AgentChat({ agent }: AgentChatProps) {
           </p>
           <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
             <p>{agent.service}</p>
-            <p>{agent.systemPrompt}</p>
+            <p>{safeSystemPrompt}</p>
+            {safeTrainingData ? (
+              <p className="text-xs text-slate-500">{safeTrainingData}</p>
+            ) : null}
           </div>
         </div>
 
