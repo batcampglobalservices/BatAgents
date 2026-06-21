@@ -1,0 +1,159 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "../wallet/ConnectButton";
+import { Menu, X, LayoutDashboard, Compass, PlusSquare, ShieldCheck, User } from "lucide-react";
+
+export const Navbar = () => {
+  const pathname = usePathname();
+  const { isConnected } = useAccount();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const navLinks = [
+    { name: "Home", href: "/" },
+    { name: "Marketplace", href: "/marketplace" },
+    { name: "Create Agent", href: "/create" },
+  ];
+
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return pathname === "/";
+    }
+    return pathname.startsWith(path);
+  };
+
+  return (
+    <nav className="sticky top-0 z-50 glass-panel border-b border-white/5 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className="p-2 bg-brand/10 rounded-lg text-brand group-hover:scale-110 transition-transform">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </span>
+              <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand transition-colors">
+                Bat <span className="text-brand">Agents</span>
+              </span>
+            </Link>
+          </div>
+
+          {/* Desktop Nav Links */}
+          <div className="hidden md:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`text-sm font-medium transition-colors hover:text-brand ${
+                  isActive(link.href) ? "text-brand" : "text-white/70"
+                }`}
+              >
+                {link.name}
+              </Link>
+            ))}
+
+            {/* Dashboards (Connected only) */}
+            {isConnected && (
+              <div className="flex items-center gap-4 border-l border-white/10 pl-4">
+                <Link
+                  href="/dashboard/creator"
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-brand ${
+                    pathname.startsWith("/dashboard/creator") ? "text-brand" : "text-white/70"
+                  }`}
+                >
+                  <PlusSquare className="w-4 h-4" />
+                  Creator
+                </Link>
+                <Link
+                  href="/dashboard/buyer"
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-brand ${
+                    pathname.startsWith("/dashboard/buyer") ? "text-brand" : "text-white/70"
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Buyer
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Wallet connect + Mobile menu button */}
+          <div className="flex items-center gap-4">
+            <ConnectButton />
+            
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="md:hidden p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden glass-panel border-b border-white/5 px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-bg-dark/95 backdrop-blur-lg">
+          {navLinks.map((link) => (
+            <Link
+              key={link.name}
+              href={link.href}
+              onClick={() => setIsOpen(false)}
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive(link.href)
+                  ? "bg-brand/10 text-brand"
+                  : "text-white/70 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              {link.name}
+            </Link>
+          ))}
+
+          {isConnected && (
+            <div className="border-t border-white/10 pt-2 mt-2 space-y-1">
+              <Link
+                href="/dashboard/creator"
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium ${
+                  pathname.startsWith("/dashboard/creator")
+                    ? "bg-brand/10 text-brand"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <PlusSquare className="w-5 h-5" />
+                Creator Dashboard
+              </Link>
+              <Link
+                href="/dashboard/buyer"
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium ${
+                  pathname.startsWith("/dashboard/buyer")
+                    ? "bg-brand/10 text-brand"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <User className="w-5 h-5" />
+                Buyer Dashboard
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+    </nav>
+  );
+};

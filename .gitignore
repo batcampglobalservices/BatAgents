@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Hardhat & Foundry Build / Cache Outputs
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/out/
+contracts/cache_forge/
+artifacts/
+cache/
+typechain-types/
+out/
+broadcast/
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# Build
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+AGENTS.md
+# Coverage
+coverage/
+coverage.json
+docs
