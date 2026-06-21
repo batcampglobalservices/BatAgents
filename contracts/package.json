@@ -5,7 +5,8 @@
   "description": "Bat Agents Solidity contracts (Hardhat + Foundry)",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "deploy:admin": "hardhat run scripts/deploy-admin-registry.js --network 0g-testnet"
   },
   "dependencies": {
     "@openzeppelin/contracts": "4.9.6"

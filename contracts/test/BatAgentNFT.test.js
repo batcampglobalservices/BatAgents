@@ -30,6 +30,7 @@ describe("BatAgentNFT", function () {
   describe("Deployment", function () {
     it("deploys correctly with valid oracle", async function () {
       expect(await batAgentNFT.transferOracle()).to.equal(await mockOracle.getAddress());
+      expect(await batAgentNFT.factory()).to.equal(ethers.ZeroAddress);
     });
 
     it("rejects zero oracle in constructor", async function () {
@@ -40,12 +41,33 @@ describe("BatAgentNFT", function () {
     });
   });
 
+  describe("Minter / Factory Configuration", function () {
+    it("owner can set factory", async function () {
+      await expect(batAgentNFT.connect(owner).setFactory(nonOwner.address))
+        .to.emit(batAgentNFT, "FactoryUpdated")
+        .withArgs(ethers.ZeroAddress, nonOwner.address);
+      expect(await batAgentNFT.factory()).to.equal(nonOwner.address);
+    });
+
+    it("non-owner cannot set factory", async function () {
+      await expect(
+        batAgentNFT.connect(nonOwner).setFactory(creator.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("rejects zero address for factory", async function () {
+      await expect(
+        batAgentNFT.connect(owner).setFactory(ethers.ZeroAddress)
+      ).to.be.revertedWith("BatAgentNFT: zero factory address");
+    });
+  });
+
   describe("Minting", function () {
-    it("mints an agent successfully and emits event", async function () {
+    it("owner can mint directly and specify creator", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
-          .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+          .connect(owner)
+          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
       )
         .to.emit(batAgentNFT, "AgentMinted")
         .withArgs(1, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
@@ -54,10 +76,29 @@ describe("BatAgentNFT", function () {
       expect(await batAgentNFT.exists(1)).to.be.true;
     });
 
+    it("registered factory can mint", async function () {
+      await batAgentNFT.connect(owner).setFactory(nonOwner.address);
+      await expect(
+        batAgentNFT
+          .connect(nonOwner)
+          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+      )
+        .to.emit(batAgentNFT, "AgentMinted")
+        .withArgs(1, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+    });
+
+    it("unauthorized caller cannot mint", async function () {
+      await expect(
+        batAgentNFT
+          .connect(nonOwner)
+          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+      ).to.be.revertedWith("BatAgentNFT: caller is not minter");
+    });
+
     it("stores creator, name, category, metadata URI, metadata hash, encrypted data hash, active status, and timestamp", async function () {
       await batAgentNFT
-        .connect(creator)
-        .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .connect(owner)
+        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       const agent = await batAgentNFT.getAgent(1);
       expect(agent.creator).to.equal(creator.address);
@@ -72,8 +113,8 @@ describe("BatAgentNFT", function () {
 
     it("tokenURI returns the metadata URI", async function () {
       await batAgentNFT
-        .connect(creator)
-        .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .connect(owner)
+        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       expect(await batAgentNFT.tokenURI(1)).to.equal(metadataURI);
     });
@@ -81,9 +122,10 @@ describe("BatAgentNFT", function () {
     it("rejects minting to zero address", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
+          .connect(owner)
           .mintAgent(
             ethers.ZeroAddress,
+            creator.address,
             name,
             category,
             metadataURI,
@@ -93,43 +135,59 @@ describe("BatAgentNFT", function () {
       ).to.be.revertedWith("BatAgentNFT: mint to zero address");
     });
 
+    it("rejects creator as zero address", async function () {
+      await expect(
+        batAgentNFT
+          .connect(owner)
+          .mintAgent(
+            buyer.address,
+            ethers.ZeroAddress,
+            name,
+            category,
+            metadataURI,
+            metadataHash,
+            encryptedDataHash
+          )
+      ).to.be.revertedWith("BatAgentNFT: creator is zero address");
+    });
+
     it("rejects empty name", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
-          .mintAgent(buyer.address, "", category, metadataURI, metadataHash, encryptedDataHash)
+          .connect(owner)
+          .mintAgent(buyer.address, creator.address, "", category, metadataURI, metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: empty name");
     });
 
     it("rejects empty category", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
-          .mintAgent(buyer.address, name, "", metadataURI, metadataHash, encryptedDataHash)
+          .connect(owner)
+          .mintAgent(buyer.address, creator.address, name, "", metadataURI, metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: empty category");
     });
 
     it("rejects empty metadata URI", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
-          .mintAgent(buyer.address, name, category, "", metadataHash, encryptedDataHash)
+          .connect(owner)
+          .mintAgent(buyer.address, creator.address, name, category, "", metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: empty metadata URI");
     });
 
     it("rejects zero metadata hash", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
-          .mintAgent(buyer.address, name, category, metadataURI, ethers.ZeroHash, encryptedDataHash)
+          .connect(owner)
+          .mintAgent(buyer.address, creator.address, name, category, metadataURI, ethers.ZeroHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: zero metadata hash");
     });
 
     it("rejects zero encrypted data hash", async function () {
       await expect(
         batAgentNFT
-          .connect(creator)
-          .mintAgent(buyer.address, name, category, metadataURI, metadataHash, ethers.ZeroHash)
+          .connect(owner)
+          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, ethers.ZeroHash)
       ).to.be.revertedWith("BatAgentNFT: zero encrypted data hash");
     });
   });
@@ -167,8 +225,8 @@ describe("BatAgentNFT", function () {
   describe("Active Status", function () {
     beforeEach(async function () {
       await batAgentNFT
-        .connect(creator)
-        .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .connect(owner)
+        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
     });
 
     it("owner can set active status", async function () {
@@ -197,8 +255,8 @@ describe("BatAgentNFT", function () {
   describe("Usage Authorization", function () {
     beforeEach(async function () {
       await batAgentNFT
-        .connect(creator)
-        .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .connect(owner)
+        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
     });
 
     it("owner can authorize usage", async function () {
@@ -237,8 +295,8 @@ describe("BatAgentNFT", function () {
 
     beforeEach(async function () {
       await batAgentNFT
-        .connect(creator)
-        .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .connect(owner)
+        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       proofHash = await mockOracle.hashTransferProof(
         buyer.address,
@@ -288,8 +346,8 @@ describe("BatAgentNFT", function () {
       expect(await batAgentNFT.exists(1)).to.be.false;
 
       await batAgentNFT
-        .connect(creator)
-        .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .connect(owner)
+        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       expect(await batAgentNFT.exists(1)).to.be.true;
     });

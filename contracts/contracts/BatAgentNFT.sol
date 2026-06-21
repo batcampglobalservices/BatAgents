@@ -36,6 +36,7 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) private _authorizedExecutors;
 
     ITransferProofOracle public transferOracle;
+    address public factory;
 
     event AgentMinted(
         uint256 indexed tokenId,
@@ -50,6 +51,7 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     event AgentStatusUpdated(uint256 indexed tokenId, bool active);
 
     event TransferOracleUpdated(address indexed oldOracle, address indexed newOracle);
+    event FactoryUpdated(address indexed oldFactory, address indexed newFactory);
 
     event AgentTransferredWithProof(
         uint256 indexed tokenId,
@@ -66,21 +68,35 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
         bool authorized
     );
 
+    modifier onlyMinter() {
+        require(msg.sender == owner() || msg.sender == factory, "BatAgentNFT: caller is not minter");
+        _;
+    }
+
     constructor(address _transferOracle) ERC721("Bat Agent NFT", "BATAGENT") Ownable() {
         require(_transferOracle != address(0), "BatAgentNFT: zero oracle address");
         transferOracle = ITransferProofOracle(_transferOracle);
         emit TransferOracleUpdated(address(0), _transferOracle);
     }
 
+    function setFactory(address _factory) external onlyOwner {
+        require(_factory != address(0), "BatAgentNFT: zero factory address");
+        address oldFactory = factory;
+        factory = _factory;
+        emit FactoryUpdated(oldFactory, _factory);
+    }
+
     function mintAgent(
         address to,
+        address creator,
         string calldata name,
         string calldata category,
         string calldata metadataURI,
         bytes32 metadataHash,
         bytes32 encryptedDataHash
-    ) external returns (uint256) {
+    ) external onlyMinter returns (uint256) {
         require(to != address(0), "BatAgentNFT: mint to zero address");
+        require(creator != address(0), "BatAgentNFT: creator is zero address");
         require(bytes(name).length > 0, "BatAgentNFT: empty name");
         require(bytes(category).length > 0, "BatAgentNFT: empty category");
         require(bytes(metadataURI).length > 0, "BatAgentNFT: empty metadata URI");
@@ -94,7 +110,7 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
         _setTokenURI(newTokenId, metadataURI);
 
         _agents[newTokenId] = AgentData({
-            creator: msg.sender,
+            creator: creator,
             name: name,
             category: category,
             metadataURI: metadataURI,
@@ -106,7 +122,7 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
 
         emit AgentMinted(
             newTokenId,
-            msg.sender,
+            creator,
             name,
             category,
             metadataURI,
