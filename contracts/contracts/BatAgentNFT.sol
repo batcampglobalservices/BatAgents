@@ -86,7 +86,7 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
         emit FactoryUpdated(oldFactory, _factory);
     }
 
-    function mintAgent(
+    function mintAgentWithCreator(
         address to,
         address creator,
         string calldata name,
@@ -123,6 +123,51 @@ contract BatAgentNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
         emit AgentMinted(
             newTokenId,
             creator,
+            name,
+            category,
+            metadataURI,
+            metadataHash,
+            encryptedDataHash
+        );
+
+        return newTokenId;
+    }
+
+    function mintAgent(
+        address to,
+        string calldata name,
+        string calldata category,
+        string calldata metadataURI,
+        bytes32 metadataHash,
+        bytes32 encryptedDataHash
+    ) external returns (uint256) {
+        require(to != address(0), "BatAgentNFT: mint to zero address");
+        require(bytes(name).length > 0, "BatAgentNFT: empty name");
+        require(bytes(category).length > 0, "BatAgentNFT: empty category");
+        require(bytes(metadataURI).length > 0, "BatAgentNFT: empty metadata URI");
+        require(metadataHash != bytes32(0), "BatAgentNFT: zero metadata hash");
+        require(encryptedDataHash != bytes32(0), "BatAgentNFT: zero encrypted data hash");
+
+        _tokenIds.increment();
+        uint256 newTokenId = _tokenIds.current();
+
+        _safeMint(to, newTokenId);
+        _setTokenURI(newTokenId, metadataURI);
+
+        _agents[newTokenId] = AgentData({
+            creator: msg.sender,
+            name: name,
+            category: category,
+            metadataURI: metadataURI,
+            metadataHash: metadataHash,
+            encryptedDataHash: encryptedDataHash,
+            active: true,
+            createdAt: block.timestamp
+        });
+
+        emit AgentMinted(
+            newTokenId,
+            msg.sender,
             name,
             category,
             metadataURI,

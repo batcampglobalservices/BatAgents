@@ -51,7 +51,7 @@ describe("UsageTracker", function () {
     await accessControl.connect(owner).setUsageTracker(await usageTracker.getAddress());
 
     // Mint an agent NFT directly
-    await batAgentNFT.connect(owner).mintAgent(
+    await batAgentNFT.connect(owner).mintAgentWithCreator(
       creator.address,
       creator.address,
       name,

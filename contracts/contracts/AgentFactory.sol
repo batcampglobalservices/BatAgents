@@ -40,7 +40,7 @@ contract AgentFactory is Ownable, ReentrancyGuard {
         require(bytes(name).length > 0 && bytes(name).length <= 64, "AgentFactory: invalid name length");
         require(bytes(category).length > 0 && bytes(category).length <= 64, "AgentFactory: invalid category length");
 
-        uint256 tokenId = agentNFT.mintAgent(
+        uint256 tokenId = agentNFT.mintAgentWithCreator(
             msg.sender,
             msg.sender,
             name,

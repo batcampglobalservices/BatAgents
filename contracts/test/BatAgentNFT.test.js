@@ -67,7 +67,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
       )
         .to.emit(batAgentNFT, "AgentMinted")
         .withArgs(1, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
@@ -81,7 +81,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(nonOwner)
-          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
       )
         .to.emit(batAgentNFT, "AgentMinted")
         .withArgs(1, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
@@ -91,14 +91,14 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(nonOwner)
-          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: caller is not minter");
     });
 
     it("stores creator, name, category, metadata URI, metadata hash, encrypted data hash, active status, and timestamp", async function () {
       await batAgentNFT
         .connect(owner)
-        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       const agent = await batAgentNFT.getAgent(1);
       expect(agent.creator).to.equal(creator.address);
@@ -114,7 +114,7 @@ describe("BatAgentNFT", function () {
     it("tokenURI returns the metadata URI", async function () {
       await batAgentNFT
         .connect(owner)
-        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       expect(await batAgentNFT.tokenURI(1)).to.equal(metadataURI);
     });
@@ -123,7 +123,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(
+          .mintAgentWithCreator(
             ethers.ZeroAddress,
             creator.address,
             name,
@@ -139,7 +139,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(
+          .mintAgentWithCreator(
             buyer.address,
             ethers.ZeroAddress,
             name,
@@ -155,7 +155,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(buyer.address, creator.address, "", category, metadataURI, metadataHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, "", category, metadataURI, metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: empty name");
     });
 
@@ -163,7 +163,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(buyer.address, creator.address, name, "", metadataURI, metadataHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, "", metadataURI, metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: empty category");
     });
 
@@ -171,7 +171,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(buyer.address, creator.address, name, category, "", metadataHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, category, "", metadataHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: empty metadata URI");
     });
 
@@ -179,7 +179,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(buyer.address, creator.address, name, category, metadataURI, ethers.ZeroHash, encryptedDataHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, ethers.ZeroHash, encryptedDataHash)
       ).to.be.revertedWith("BatAgentNFT: zero metadata hash");
     });
 
@@ -187,7 +187,7 @@ describe("BatAgentNFT", function () {
       await expect(
         batAgentNFT
           .connect(owner)
-          .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, ethers.ZeroHash)
+          .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, ethers.ZeroHash)
       ).to.be.revertedWith("BatAgentNFT: zero encrypted data hash");
     });
   });
@@ -226,7 +226,7 @@ describe("BatAgentNFT", function () {
     beforeEach(async function () {
       await batAgentNFT
         .connect(owner)
-        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
     });
 
     it("owner can set active status", async function () {
@@ -256,7 +256,7 @@ describe("BatAgentNFT", function () {
     beforeEach(async function () {
       await batAgentNFT
         .connect(owner)
-        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
     });
 
     it("owner can authorize usage", async function () {
@@ -296,7 +296,7 @@ describe("BatAgentNFT", function () {
     beforeEach(async function () {
       await batAgentNFT
         .connect(owner)
-        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       proofHash = await mockOracle.hashTransferProof(
         buyer.address,
@@ -347,9 +347,81 @@ describe("BatAgentNFT", function () {
 
       await batAgentNFT
         .connect(owner)
-        .mintAgent(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+        .mintAgentWithCreator(buyer.address, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
 
       expect(await batAgentNFT.exists(1)).to.be.true;
+    });
+  });
+
+  describe("Minting (6-parameter version)", function () {
+    it("mints an agent successfully and sets creator to msg.sender", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(buyer.address, name, category, metadataURI, metadataHash, encryptedDataHash)
+      )
+        .to.emit(batAgentNFT, "AgentMinted")
+        .withArgs(1, creator.address, name, category, metadataURI, metadataHash, encryptedDataHash);
+
+      expect(await batAgentNFT.ownerOf(1)).to.equal(buyer.address);
+      const agent = await batAgentNFT.getAgent(1);
+      expect(agent.creator).to.equal(creator.address);
+      expect(agent.name).to.equal(name);
+      expect(agent.category).to.equal(category);
+      expect(agent.metadataURI).to.equal(metadataURI);
+      expect(agent.metadataHash).to.equal(metadataHash);
+      expect(agent.encryptedDataHash).to.equal(encryptedDataHash);
+      expect(agent.active).to.be.true;
+      expect(agent.createdAt).to.be.gt(0);
+      expect(await batAgentNFT.tokenURI(1)).to.equal(metadataURI);
+    });
+
+    it("rejects minting to zero address", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(ethers.ZeroAddress, name, category, metadataURI, metadataHash, encryptedDataHash)
+      ).to.be.revertedWith("BatAgentNFT: mint to zero address");
+    });
+
+    it("rejects empty name", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(buyer.address, "", category, metadataURI, metadataHash, encryptedDataHash)
+      ).to.be.revertedWith("BatAgentNFT: empty name");
+    });
+
+    it("rejects empty category", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(buyer.address, name, "", metadataURI, metadataHash, encryptedDataHash)
+      ).to.be.revertedWith("BatAgentNFT: empty category");
+    });
+
+    it("rejects empty metadata URI", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(buyer.address, name, category, "", metadataHash, encryptedDataHash)
+      ).to.be.revertedWith("BatAgentNFT: empty metadata URI");
+    });
+
+    it("rejects zero metadata hash", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(buyer.address, name, category, metadataURI, ethers.ZeroHash, encryptedDataHash)
+      ).to.be.revertedWith("BatAgentNFT: zero metadata hash");
+    });
+
+    it("rejects zero encrypted data hash", async function () {
+      await expect(
+        batAgentNFT
+          .connect(creator)
+          .mintAgent(buyer.address, name, category, metadataURI, metadataHash, ethers.ZeroHash)
+      ).to.be.revertedWith("BatAgentNFT: zero encrypted data hash");
     });
   });
 });

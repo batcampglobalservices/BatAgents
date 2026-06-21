@@ -16,9 +16,10 @@ async function main() {
   console.log(`Balance:    ${hre.ethers.formatEther(balance)} tokens`);
   console.log("=====================================\n");
 
-  // Prevent deployment on mainnet or if balance is 0 for safety
-  if (balance === 0n) {
-    console.error("Error: Deployer wallet has 0 balance.");
+  // Prevent deployment if balance is 0 or too low for safety
+  const minRequiredBalance = hre.ethers.parseEther("0.001");
+  if (balance < minRequiredBalance) {
+    console.error(`Error: Deployer wallet balance is too low (${hre.ethers.formatEther(balance)} tokens). Minimum required is 0.001 tokens.`);
     process.exit(1);
   }
 

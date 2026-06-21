@@ -47,7 +47,7 @@ describe("Marketplace", function () {
     // It has no modifiers! So anyone can call it. That means Marketplace doesn't need ownership to call it.
     
     // Mint an agent NFT directly via owner
-    await batAgentNFT.connect(owner).mintAgent(
+    await batAgentNFT.connect(owner).mintAgentWithCreator(
       creator.address,
       creator.address,
       name,

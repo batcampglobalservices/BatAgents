@@ -41,7 +41,7 @@ describe("AgentAccessControl", function () {
     );
 
     // Mint an agent NFT directly (creator is the creator and owner)
-    await batAgentNFT.connect(owner).mintAgent(
+    await batAgentNFT.connect(owner).mintAgentWithCreator(
       creator.address,
       creator.address,
       name,
@@ -120,7 +120,7 @@ describe("AgentAccessControl", function () {
 
     it("fails to rent if terms pricePerDay is zero", async function () {
       // Create new NFT (id = 2) with no terms set
-      await batAgentNFT.connect(owner).mintAgent(
+      await batAgentNFT.connect(owner).mintAgentWithCreator(
         creator.address,
         creator.address,
         name,
@@ -203,7 +203,7 @@ describe("AgentAccessControl", function () {
 
     it("fails to buy messages if terms pricePerMessage is zero", async function () {
       // Create new NFT (id = 2) with no terms set
-      await batAgentNFT.connect(owner).mintAgent(
+      await batAgentNFT.connect(owner).mintAgentWithCreator(
         creator.address,
         creator.address,
         name,
