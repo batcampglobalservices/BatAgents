@@ -13,20 +13,12 @@ export const Footer = () => {
           {/* Brand Info */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-brand/10 rounded-md text-brand">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
+              <span className="p-1 bg-brand/10 rounded-md">
+                <img
+                  src="/logo.png"
+                  alt="Bat Agents Logo"
+                  className="w-6 h-6 object-contain"
+                />
               </span>
               <span className="text-lg font-bold tracking-tight text-white">
                 Bat <span className="text-brand">Agents</span>

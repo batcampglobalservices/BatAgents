@@ -32,20 +32,12 @@ export const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
-              <span className="p-2 bg-brand/10 rounded-lg text-brand group-hover:scale-110 transition-transform">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
+              <span className="p-1 bg-brand/10 rounded-lg group-hover:scale-115 transition-transform duration-300">
+                <img
+                  src="/logo.png"
+                  alt="Bat Agents Logo"
+                  className="w-7 h-7 object-contain"
+                />
               </span>
               <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand transition-colors">
                 Bat <span className="text-brand">Agents</span>
