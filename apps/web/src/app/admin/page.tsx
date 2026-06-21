@@ -4,6 +4,7 @@ import React from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { ADMIN_REGISTRY_ABI, ADMIN_REGISTRY_ADDRESS } from "@/lib/admin/adminRegistry";
 import { isLocalAdminAllowed } from "@/lib/admin/adminAccess";
+import { ConnectButton } from "@/components/wallet/ConnectButton";
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount();
@@ -28,7 +29,7 @@ export default function AdminPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
         <h1 className="text-3xl font-bold mb-4">Admin Dashboard</h1>
         <p className="text-text-secondary mb-8">Connect your wallet to continue.</p>
-        <appkit-button />
+        <ConnectButton />
       </div>
     );
   }
@@ -56,7 +57,7 @@ export default function AdminPage() {
           Your connected wallet does not have superadmin or moderator privileges.
         </p>
         <div className="mt-8">
-          <appkit-button />
+          <ConnectButton />
         </div>
       </div>
     );
