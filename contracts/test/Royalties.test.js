@@ -7,7 +7,7 @@ describe("Royalties", function () {
   let creator;
   let buyer;
   let nonOwner;
-  const initialPlatformFeeBps = 500; // 5%
+  const initialPlatformFeeBps = 4000; // 40%
 
   beforeEach(async function () {
     [owner, creator, buyer, nonOwner] = await ethers.getSigners();
@@ -24,24 +24,24 @@ describe("Royalties", function () {
 
     it("rejects invalid platform fee above the cap", async function () {
       const Royalties = await ethers.getContractFactory("Royalties");
-      await expect(Royalties.deploy(2001)).to.be.revertedWith("Royalties: fee exceeds cap");
+      await expect(Royalties.deploy(4001)).to.be.revertedWith("Royalties: fee exceeds cap");
     });
   });
 
   describe("Platform Fee Management", function () {
     it("owner can update platform fee", async function () {
-      await expect(royalties.setPlatformFeeBps(1000))
+      await expect(royalties.setPlatformFeeBps(3000))
         .to.emit(royalties, "PlatformFeeUpdated")
-        .withArgs(initialPlatformFeeBps, 1000);
-      expect(await royalties.platformFeeBps()).to.equal(1000);
+        .withArgs(initialPlatformFeeBps, 3000);
+      expect(await royalties.platformFeeBps()).to.equal(3000);
     });
 
     it("rejects invalid platform fee above the cap when updating", async function () {
-      await expect(royalties.setPlatformFeeBps(2001)).to.be.revertedWith("Royalties: fee exceeds cap");
+      await expect(royalties.setPlatformFeeBps(4001)).to.be.revertedWith("Royalties: fee exceeds cap");
     });
 
     it("non-owner cannot update platform fee", async function () {
-      await expect(royalties.connect(nonOwner).setPlatformFeeBps(1000))
+      await expect(royalties.connect(nonOwner).setPlatformFeeBps(3000))
         .to.be.revertedWith("Ownable: caller is not the owner");
     });
   });

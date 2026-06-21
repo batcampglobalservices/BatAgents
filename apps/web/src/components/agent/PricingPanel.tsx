@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { useAccount } from "wagmi";
@@ -18,6 +18,7 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
   ppmPrice,
 }) => {
   const { isConnected } = useAccount();
+  const [hireHours, setHireHours] = useState(4);
 
   const purchaseOptions = [
     {
@@ -30,11 +31,11 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
     },
     {
       type: "rental",
-      title: "Daily Rental",
-      price: rentalPrice,
+      title: "Hourly Hire",
+      price: "0.5",
       icon: <Clock className="w-5 h-5 text-emerald-400" />,
-      description: "Temporary authorization. Access the agent prompt decryption key for exactly 24 hours.",
-      actionLabel: "Rent Agent",
+      description: "Hire the AI agent for a specific duration. Requires a 40% platform fee and 60% creator payout split.",
+      actionLabel: "Hire Agent",
     },
     {
       type: "ppm",
@@ -73,7 +74,7 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
                   </div>
                   {isAvailable && (
                     <span className="font-bold text-brand">
-                      {opt.price} <span className="text-xs text-white/50">0G</span>
+                      {opt.type === "rental" ? "0.5" : opt.price} <span className="text-xs text-white/50">0G{opt.type === "rental" && "/hour"}</span>
                     </span>
                   )}
                 </div>
@@ -82,6 +83,53 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
                 <p className="text-xs text-white/50 leading-relaxed">
                   {opt.description}
                 </p>
+
+                {/* Hourly Hire Calculator */}
+                {opt.type === "rental" && isAvailable && (
+                  <div className="mt-3 p-3 bg-white/[0.02] border border-white/5 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/50">Select Duration:</span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          max="720"
+                          value={hireHours}
+                          onChange={(e) => setHireHours(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-16 bg-white/5 border border-white/5 text-center text-white rounded py-1 px-1 focus:outline-none focus:border-brand/40 text-xs font-semibold"
+                        />
+                        <span className="text-white/40">hours</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 pt-2 border-t border-white/5 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-white/40">Hourly rate:</span>
+                        <span className="text-white font-medium">0.5 0G/hour</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/40">Selected duration:</span>
+                        <span className="text-white font-medium">{hireHours} hours</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/40">Creator receives (60%):</span>
+                        <span className="text-emerald-400 font-bold">{(hireHours * 0.5 * 0.6).toFixed(1)} 0G</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/40">Platform fee (40%):</span>
+                        <span className="text-brand font-bold">{(hireHours * 0.5 * 0.4).toFixed(1)} 0G</span>
+                      </div>
+                      <div className="flex justify-between pt-1.5 border-t border-white/5 text-xs font-bold">
+                        <span className="text-white">Total to pay:</span>
+                        <span className="text-brand">{(hireHours * 0.5).toFixed(1)} 0G</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-white/30 italic">
+                        <span>Access duration:</span>
+                        <span>{hireHours} hours</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Button */}
@@ -95,6 +143,8 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
                   >
                     {!isConnected
                       ? "Connect Wallet to Purchase"
+                      : opt.type === "rental"
+                      ? `${opt.actionLabel} (${(hireHours * 0.5).toFixed(1)} 0G)`
                       : `${opt.actionLabel} (${opt.price} 0G)`}
                   </Button>
                 ) : (

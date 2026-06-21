@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract Royalties is Ownable, ReentrancyGuard {
     uint256 public platformFeeBps;
-    uint256 public constant MAX_PLATFORM_FEE_BPS = 2000; // 20% cap
+    uint256 public constant MAX_PLATFORM_FEE_BPS = 4000; // 40% cap
 
     mapping(address => uint256) private _pendingBalances;
 

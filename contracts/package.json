@@ -6,7 +6,9 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:admin": "hardhat run scripts/deploy-admin-registry.js --network 0g-testnet"
+    "deploy:admin": "hardhat run scripts/deploy-admin-registry.js --network 0g-testnet",
+    "deploy:royalties": "hardhat run scripts/deploy-royalties.js --network 0g-testnet",
+    "deploy:core": "hardhat run scripts/deploy-core.js --network 0g-testnet"
   },
   "dependencies": {
     "@openzeppelin/contracts": "4.9.6"

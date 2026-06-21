@@ -218,6 +218,31 @@ export const CreateAgentForm = () => {
             </div>
           </Card>
 
+          {/* Subscription Fee Details Info Box */}
+          <div className="p-4 bg-brand/5 border border-brand/20 rounded-xl space-y-2">
+            <h4 className="text-xs font-semibold text-brand uppercase tracking-wider">Monetization & Listing Rules</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1">
+                <span className="text-white/40 block">Monthly platform fee:</span>
+                <span className="font-bold text-white">0.05 0G</span>
+                <span className="text-[10px] text-white/30 block">(First payment due now during creation/listing)</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-white/40 block">Subscription duration:</span>
+                <span className="font-bold text-white">30 days</span>
+                <span className="text-[10px] text-white/30 block">(Renew monthly to keep agent hireable)</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-white/40 block">Platform commission on hires:</span>
+                <span className="font-bold text-brand">40%</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-white/40 block">Creator payout from hires:</span>
+                <span className="font-bold text-emerald-400">60%</span>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <Button type="submit" size="lg" className="font-semibold">
               Continue to Review
