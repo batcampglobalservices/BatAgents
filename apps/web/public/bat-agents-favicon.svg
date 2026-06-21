@@ -1,0 +1,51 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Bat Agents Icon</title>
+  <desc id="desc">A futuristic bat and AI agent merged into one logo icon.</desc>
+  <rect width="512" height="512" rx="96" fill="#08090B"/>
+  <circle cx="256" cy="256" r="196" fill="url(#bgGlow)" opacity="0.32"/>
+
+  <!-- Outer bat wings -->
+  <path d="M92 246C112 196 154 168 205 168L226 222L184 214L150 240L119 240L92 246Z" fill="#15171B"/>
+  <path d="M420 246C400 196 358 168 307 168L286 222L328 214L362 240L393 240L420 246Z" fill="#15171B"/>
+  <path d="M92 246C124 236 148 240 168 264L178 310L218 276L202 236L150 240L119 240L92 246Z" fill="#0E1014"/>
+  <path d="M420 246C388 236 364 240 344 264L334 310L294 276L310 236L362 240L393 240L420 246Z" fill="#0E1014"/>
+
+  <!-- Orange wing accents -->
+  <path d="M126 220C146 196 172 185 204 185L219 220L184 212L150 236" stroke="#EA6002" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M386 220C366 196 340 185 308 185L293 220L328 212L362 236" stroke="#EA6002" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Ears -->
+  <path d="M204 166L224 74L244 184L204 166Z" fill="#2A2D33"/>
+  <path d="M308 166L288 74L268 184L308 166Z" fill="#2A2D33"/>
+  <path d="M218 125L228 172" stroke="#6C7078" stroke-width="8" stroke-linecap="round"/>
+  <path d="M294 125L284 172" stroke="#6C7078" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Agent helmet/head -->
+  <path d="M190 190C190 166 210 146 234 146H278C302 146 322 166 322 190V236C322 256 306 272 286 272H226C206 272 190 256 190 236V190Z" fill="#181B20"/>
+  <path d="M205 198C205 178 221 162 241 162H271C291 162 307 178 307 198V225C307 240 295 252 280 252H232C217 252 205 240 205 225V198Z" fill="#0A0C0F"/>
+  <path d="M206 198C210 174 225 162 244 162H268C287 162 302 174 306 198" stroke="#70747C" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Eyes -->
+  <path d="M224 221C231 210 245 210 252 221V232H224V221Z" fill="#EA6002"/>
+  <path d="M260 221C267 210 281 210 288 221V232H260V221Z" fill="#EA6002"/>
+
+  <!-- Chin / shield -->
+  <path d="M206 264L256 318L306 264L288 292L256 338L224 292L206 264Z" fill="#111318"/>
+  <path d="M220 276L256 306L292 276" stroke="#EA6002" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Circuit mark -->
+  <path d="M256 151V177H268V188" stroke="#EA6002" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="268" cy="202" r="10" stroke="#EA6002" stroke-width="7"/>
+
+  <!-- Subtle outlines -->
+  <path d="M190 190C190 166 210 146 234 146H278C302 146 322 166 322 190V236C322 256 306 272 286 272H226C206 272 190 256 190 236V190Z" stroke="#343942" stroke-width="5"/>
+  <path d="M92 246C112 196 154 168 205 168L226 222" stroke="#292D34" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M420 246C400 196 358 168 307 168L286 222" stroke="#292D34" stroke-width="5" stroke-linejoin="round"/>
+
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 256) rotate(90) scale(196)">
+      <stop stop-color="#EA6002"/>
+      <stop offset="1" stop-color="#EA6002" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

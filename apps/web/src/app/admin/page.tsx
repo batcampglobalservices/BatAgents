@@ -186,18 +186,22 @@ export default function AdminOverviewPage() {
           </div>
 
           <div className="space-y-3">
-            {events.map((ev) => (
-              <div key={ev.id} className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg hover:border-zinc-700/60 transition-all flex items-start justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white">{ev.type}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">{new Date(ev.timestamp).toLocaleTimeString()}</span>
+            {events.length === 0 ? (
+              <div className="text-zinc-500 text-xs py-8 text-center">No recent security alerts.</div>
+            ) : (
+              events.map((ev) => (
+                <div key={ev.id} className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg hover:border-zinc-700/60 transition-all flex items-start justify-between gap-4">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-white">{ev.type}</span>
+                      <span className="text-[10px] text-zinc-500 font-mono">{new Date(ev.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 truncate">{ev.details}</p>
                   </div>
-                  <p className="text-xs text-zinc-400 truncate">{ev.details}</p>
+                  <RiskBadge level={ev.riskLevel} />
                 </div>
-                <RiskBadge level={ev.riskLevel} />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -209,26 +213,30 @@ export default function AdminOverviewPage() {
           </div>
 
           <div className="space-y-3">
-            {txs.map((tx) => (
-              <div key={tx.hash} className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg flex items-center justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-850 text-zinc-300 font-semibold">{tx.actionType}</span>
-                    <span className="text-xs text-white font-mono truncate max-w-[120px]">{tx.wallet}</span>
+            {txs.length === 0 ? (
+              <div className="text-zinc-500 text-xs py-8 text-center">No recent transactions or platform operations.</div>
+            ) : (
+              txs.map((tx) => (
+                <div key={tx.hash} className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg flex items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-850 text-zinc-300 font-semibold">{tx.actionType}</span>
+                      <span className="text-xs text-white font-mono truncate max-w-[120px]">{tx.wallet}</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 block font-mono">Hash: {tx.hash.slice(0, 16)}...</span>
                   </div>
-                  <span className="text-[10px] text-zinc-500 block font-mono">Hash: {tx.hash.slice(0, 16)}...</span>
-                </div>
 
-                <div className="text-right">
-                  <span className="text-xs font-semibold text-zinc-200 block">{tx.amount}</span>
-                  <span className={`text-[10px] uppercase font-semibold ${
-                    tx.status === "success" ? "text-green-400" : tx.status === "failed" ? "text-red-400" : "text-yellow-400"
-                  }`}>
-                    {tx.status}
-                  </span>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold text-zinc-200 block">{tx.amount}</span>
+                    <span className={`text-[10px] uppercase font-semibold ${
+                      tx.status === "success" ? "text-green-400" : tx.status === "failed" ? "text-red-400" : "text-yellow-400"
+                    }`}>
+                      {tx.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

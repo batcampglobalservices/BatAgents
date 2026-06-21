@@ -57,11 +57,11 @@ export const EarningsPanel: React.FC<EarningsPanelProps> = ({
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-white/40">Creator Split:</span>
-                <span className="font-semibold text-white">95%</span>
+                <span className="font-semibold text-white">60%</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-white/40">Protocol Fee:</span>
-                <span className="font-semibold text-white">5%</span>
+                <span className="text-white/40">Platform Fee:</span>
+                <span className="font-semibold text-white">40%</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-white/5">
                 <span className="text-white/40">Total Lifetime Earnings:</span>

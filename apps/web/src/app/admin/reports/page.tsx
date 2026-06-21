@@ -55,7 +55,9 @@ export default function AdminReportsPage() {
         <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-semibold text-white uppercase tracking-wider font-mono">Active Abuse Logs</h3>
 
-          {filteredReports.length === 0 ? (
+          {reports.length === 0 ? (
+            <div className="text-zinc-500 text-xs py-8 text-center">No live report system connected yet. Reports will appear here after the on-chain/storage report flow is implemented.</div>
+          ) : filteredReports.length === 0 ? (
             <div className="text-zinc-500 text-xs py-8 text-center">No reports match the status filter.</div>
           ) : (
             <div className="space-y-3">

@@ -4,6 +4,7 @@ import { Providers } from "./providers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { CustomCursor } from "@/components/effects/CustomCursor";
 
 export const viewport: Viewport = {
   themeColor: "#EA6002",
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased min-h-screen flex flex-col bg-bg-dark text-white">
         <Providers>
+          <CustomCursor />
           <Navbar />
           <div className="flex-grow flex flex-col relative">
             {children}

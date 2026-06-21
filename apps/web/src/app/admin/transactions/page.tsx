@@ -77,7 +77,13 @@ export default function AdminTransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60 text-xs text-zinc-300">
-              {filteredTxs.length === 0 ? (
+              {txs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-zinc-500">
+                    No platform transactions found yet.
+                  </td>
+                </tr>
+              ) : filteredTxs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-zinc-500">
                     No transactions match search filters.

@@ -87,7 +87,13 @@ export default function AdminAgentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60 text-xs text-zinc-300">
-              {filteredAgents.length === 0 ? (
+              {agents.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-zinc-500">
+                    No live agents listed yet. Create and mint the first Bat Agent on 0G testnet.
+                  </td>
+                </tr>
+              ) : filteredAgents.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-zinc-500">
                     No AI agents found matching filters.

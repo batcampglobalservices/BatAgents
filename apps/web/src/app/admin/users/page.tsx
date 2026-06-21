@@ -97,7 +97,13 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60 text-xs text-zinc-300">
-              {filteredUsers.length === 0 ? (
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-zinc-500">
+                    No platform wallets found yet. Users will appear after real mint, list, hire, or admin activity happens on testnet.
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-zinc-500">
                     No users match the search filters.

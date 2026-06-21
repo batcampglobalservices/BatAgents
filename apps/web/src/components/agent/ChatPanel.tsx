@@ -8,27 +8,61 @@ import { useAccount } from "wagmi";
 interface ChatPanelProps {
   hasAccess?: boolean;
   agentName: string;
+  modelName?: string;
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   hasAccess = false,
   agentName,
+  modelName = "Qwen/Qwen2.5-72B-Instruct",
 }) => {
   const { isConnected } = useAccount();
   const [messages, setMessages] = useState<Array<{ sender: "user" | "agent"; text: string }>>([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !hasAccess) return;
+    if (!input.trim() || !hasAccess || loading) return;
 
+    const userMessage = input.trim();
     // Append user message
-    setMessages((prev) => [...prev, { sender: "user", text: input }]);
+    setMessages((prev) => [...prev, { sender: "user", text: userMessage }]);
     setInput("");
+    setLoading(true);
 
-    // NOTE: Chat generation logic goes through 0G Compute.
-    // Fake replies are prohibited by AGENTS.md, so we don't mock it.
-    // We add a system note showing that compute is ready to wire up.
+    try {
+      const formattedHistory = messages.concat({ sender: "user", text: userMessage }).map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: formattedHistory,
+          model: modelName,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch response");
+      }
+
+      const reply = data.choices?.[0]?.message?.content || "No response content received.";
+      setMessages((prev) => [...prev, { sender: "agent", text: reply }]);
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err.message?.includes("configured")
+        ? "0G Compute is not configured yet. Add the required compute configuration to enable live agent responses."
+        : `0G Compute error: ${err.message || "Unknown error"}`;
+      
+      setMessages((prev) => [...prev, { sender: "agent", text: errMsg }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -89,16 +123,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 </div>
               </div>
             ))}
-            
-            {/* Compute Connection Stub Indicator */}
-            <div className="p-3 bg-brand/5 border border-dashed border-brand/20 rounded-xl text-center space-y-1">
-              <span className="text-[10px] font-bold text-brand uppercase tracking-wider block">
-                0G Compute Pipeline Ready
-              </span>
-              <span className="text-[10px] text-white/40 block">
-                Message received. Compute pipeline will execute API completed proxy once 0G Node is active.
-              </span>
-            </div>
+
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-white/5 border border-white/5 text-white/50 rounded-xl rounded-bl-none px-4 py-2.5 text-xs flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:0.2s]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:0.4s]" />
+                  <span className="ml-1 font-mono text-[10px]">Querying TEE Node...</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -107,7 +142,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <form onSubmit={handleSend} className="p-4 border-t border-white/5 bg-white/[0.01]">
         <div className="flex gap-2">
           <input
-            disabled={!hasAccess}
+            disabled={!hasAccess || loading}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -120,7 +155,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           />
           <Button
             type="submit"
-            disabled={!hasAccess || !input.trim()}
+            disabled={!hasAccess || !input.trim() || loading}
             className="px-3 py-2"
           >
             <Send className="w-4 h-4" />
