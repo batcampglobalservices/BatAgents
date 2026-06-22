@@ -10,15 +10,21 @@ export default function AdminOverviewPage() {
   const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [txs, setTxs] = useState<AdminTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Retrieve live values from the in-memory data store
-    setMetrics(adminDataService.getPlatformMetrics());
-    setEvents(adminDataService.getSecurityEvents().slice(0, 3));
-    setTxs(adminDataService.getTransactions().slice(0, 4));
+    async function load() {
+      setLoading(true);
+      await adminDataService.loadData();
+      setMetrics(adminDataService.getPlatformMetrics());
+      setEvents(adminDataService.getSecurityEvents().slice(0, 3));
+      setTxs(adminDataService.getTransactions().slice(0, 4));
+      setLoading(false);
+    }
+    load();
   }, []);
 
-  if (!metrics) {
+  if (loading || !metrics) {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

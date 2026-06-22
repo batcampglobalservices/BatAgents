@@ -10,10 +10,25 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUsers(adminDataService.getUsers());
+    async function load() {
+      setLoading(true);
+      await adminDataService.loadData();
+      setUsers(adminDataService.getUsers());
+      setLoading(false);
+    }
+    load();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   const handleStatusChange = (wallet: string, status: "active" | "flagged" | "suspended" | "banned", reason?: string) => {
     adminDataService.updateUserStatus(wallet, status, reason);

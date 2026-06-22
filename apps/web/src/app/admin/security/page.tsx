@@ -7,10 +7,25 @@ import { RiskBadge } from "@/components/admin/RiskBadge";
 export default function AdminSecurityPage() {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [riskFilter, setRiskFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setEvents(adminDataService.getSecurityEvents());
+    async function load() {
+      setLoading(true);
+      await adminDataService.loadData();
+      setEvents(adminDataService.getSecurityEvents());
+      setLoading(false);
+    }
+    load();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   const handleResolveEvent = (eventId: string) => {
     adminDataService.resolveSecurityEvent(eventId);

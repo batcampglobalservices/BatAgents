@@ -10,9 +10,25 @@ export default function AdminTransactionsPage() {
 
   const explorerUrl = process.env.NEXT_PUBLIC_ZERO_G_EXPLORER_URL || "https://chainscan-galileo.0g.ai";
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    setTxs(adminDataService.getTransactions());
+    async function load() {
+      setLoading(true);
+      await adminDataService.loadData();
+      setTxs(adminDataService.getTransactions());
+      setLoading(false);
+    }
+    load();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   const filteredTxs = txs.filter(tx => {
     const matchesSearch = 

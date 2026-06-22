@@ -7,10 +7,25 @@ export default function AdminAgentsPage() {
   const [agents, setAgents] = useState<AdminAgent[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setAgents(adminDataService.getAgents());
+    async function load() {
+      setLoading(true);
+      await adminDataService.loadData();
+      setAgents(adminDataService.getAgents());
+      setLoading(false);
+    }
+    load();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   const handleToggleActive = (tokenId: number, currentActive: boolean) => {
     adminDataService.toggleAgentActive(tokenId, !currentActive);
