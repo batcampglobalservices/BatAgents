@@ -72,7 +72,7 @@ export default function AgentDetailPage() {
   const params = useParams();
   const { address, isConnected } = useAccount();
   const idStr = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const tokenId = idStr ? BigInt(idStr) : 1n;
+  const tokenId = idStr ? BigInt(idStr) : BigInt(1);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -152,8 +152,8 @@ export default function AgentDetailPage() {
   }
 
   // Parse listing details
-  const buyoutPrice = listing && listing.active && listing.price > 0n ? formatEther(listing.price) : undefined;
-  const rentalPrice = listing && listing.active && listing.hourlyRateWei > 0n ? formatEther(listing.hourlyRateWei) : undefined;
+  const buyoutPrice = listing && listing[3] && listing[1] > BigInt(0) ? formatEther(listing[1]) : undefined;
+  const rentalPrice = listing && listing[3] && listing[2] > BigInt(0) ? formatEther(listing[2]) : undefined;
 
   return (
     <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 w-full">

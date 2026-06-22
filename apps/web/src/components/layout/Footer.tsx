@@ -7,7 +7,7 @@ export const Footer = () => {
   const currentNetwork = OG_NETWORKS.testnet; // Galileo testnet default
 
   return (
-    <footer className="border-t border-white/5 bg-bg-dark/50 py-12 relative z-10">
+    <footer className="hidden md:block border-t border-white/5 bg-bg-dark/50 py-12 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Info */}

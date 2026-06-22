@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/layout/Navbar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { Footer } from "@/components/layout/Footer";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { CustomCursor } from "@/components/effects/CustomCursor";
@@ -32,10 +33,11 @@ export default function RootLayout({
         <Providers>
           <CustomCursor />
           <Navbar />
-          <div className="flex-grow flex flex-col relative">
+          <div className="flex-grow flex flex-col relative pb-16 md:pb-0">
             {children}
           </div>
           <Footer />
+          <MobileBottomNav />
           <InstallBanner />
         </Providers>
       </body>

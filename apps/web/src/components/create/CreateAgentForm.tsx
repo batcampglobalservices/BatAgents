@@ -203,7 +203,7 @@ export const CreateAgentForm = () => {
         abi: AGENT_FACTORY_ABI,
         functionName: "createAgent",
         args: [name, "AI Agent", metadataURI, nameHash, encryptedHash],
-        value: mintFee || 0n,
+        value: mintFee || BigInt(0),
       });
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to prepare transaction");
@@ -280,7 +280,7 @@ export const CreateAgentForm = () => {
           ] as const,
           functionName: "listAgent",
           args: [BigInt(tokenId), parseEther(rentalPrice || "0")],
-          value: monthlyCreatorFee || 0n,
+          value: monthlyCreatorFee || BigInt(0),
         });
       }
     } catch (err: any) {

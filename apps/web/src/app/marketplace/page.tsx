@@ -100,9 +100,9 @@ export default function MarketplacePage() {
               args: [BigInt(i)],
             });
 
-            if (listing && listing.active) {
-              const isBuyout = listing.price > 0n;
-              const formattedPrice = isBuyout ? formatEther(listing.price) : formatEther(listing.hourlyRateWei);
+            if (listing && listing[3]) {
+              const isBuyout = listing[1] > BigInt(0);
+              const formattedPrice = isBuyout ? formatEther(listing[1]) : formatEther(listing[2]);
 
               loadedListings.push({
                 id: i.toString(),
