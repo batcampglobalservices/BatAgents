@@ -39,7 +39,7 @@ export const Navbar = () => {
                   className="w-7 h-7 object-contain"
                 />
               </span>
-              <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand transition-colors">
+              <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand transition-colors whitespace-nowrap">
                 Bat <span className="text-brand">Agents</span>
               </span>
             </Link>
@@ -84,16 +84,9 @@ export const Navbar = () => {
             )}
           </div>
 
-          {/* Wallet connect + Mobile menu button */}
+          {/* Wallet connect */}
           <div className="flex items-center gap-4">
             <ConnectButton />
-            
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
           </div>
         </div>
       </div>
