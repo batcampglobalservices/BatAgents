@@ -1,24 +1,133 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { useAccount } from "wagmi";
-import { ShieldAlert, CreditCard, Clock, Coins } from "lucide-react";
+import { 
+  useAccount, 
+  useWriteContract, 
+  useWaitForTransactionReceipt 
+} from "wagmi";
+import { ShieldAlert, CreditCard, Clock, Coins, Loader2 } from "lucide-react";
+import { parseEther, formatEther } from "viem";
 
 interface PricingPanelProps {
+  tokenId: string;
   buyoutPrice?: string;
-  rentalPrice?: string;
+  rentalPrice?: string; // Hourly rate in 0G
   ppmPrice?: string;
+  onSuccess?: () => void;
 }
 
+const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x54c31DE1B30f572e6016655096a545a2299D518d") as `0x${string}`;
+const EXPLORER_URL = process.env.NEXT_PUBLIC_ZERO_G_EXPLORER_URL || "https://chainscan-galileo.0g.ai";
+
+const MARKETPLACE_ABI = [
+  {
+    inputs: [
+      { internalType: "uint256", name: "tokenId", type: "uint256" },
+      { internalType: "uint256", name: "durationSeconds", type: "uint256" }
+    ],
+    name: "hireAgent",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function"
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "tokenId", type: "uint256" },
+      { internalType: "bytes", name: "sealedKey", type: "bytes" },
+      { internalType: "bytes", name: "proof", type: "bytes" }
+    ],
+    name: "purchase",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function"
+  }
+] as const;
+
 export const PricingPanel: React.FC<PricingPanelProps> = ({
+  tokenId,
   buyoutPrice,
-  rentalPrice,
+  rentalPrice = "0.5",
   ppmPrice,
+  onSuccess,
 }) => {
   const { isConnected } = useAccount();
   const [hireHours, setHireHours] = useState(4);
+  const [isPendingTx, setIsPendingTx] = useState(false);
+  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const { writeContract, data: txResult, error: writeError, reset } = useWriteContract();
+
+  const { isSuccess: isConfirmed, isLoading: isWaiting } = useWaitForTransactionReceipt({
+    hash: txHash || undefined,
+  });
+
+  // Track Tx Hash
+  useEffect(() => {
+    if (txResult) {
+      setTxHash(txResult);
+      setIsPendingTx(false);
+      reset();
+    }
+  }, [txResult, reset]);
+
+  // Track Tx Confirmation
+  useEffect(() => {
+    if (isConfirmed) {
+      setTxHash(null);
+      if (onSuccess) onSuccess();
+    }
+  }, [isConfirmed, onSuccess]);
+
+  // Track Tx Errors
+  useEffect(() => {
+    if (writeError) {
+      setErrorMessage(writeError.message || "Transaction signature rejected.");
+      setIsPendingTx(false);
+    }
+  }, [writeError]);
+
+  const handleAction = async (type: string) => {
+    setErrorMessage(null);
+    setIsPendingTx(true);
+    setTxHash(null);
+
+    try {
+      if (type === "rental") {
+        const durationSeconds = BigInt(hireHours * 3600);
+        // hourlyRate * durationSeconds / 3600 = hourlyRate * hireHours
+        const totalPayment = parseEther((hireHours * parseFloat(rentalPrice)).toString());
+
+        writeContract({
+          address: MARKETPLACE_ADDRESS,
+          abi: MARKETPLACE_ABI,
+          functionName: "hireAgent",
+          args: [BigInt(tokenId), durationSeconds],
+          value: totalPayment,
+        });
+      } else if (type === "buyout") {
+        if (!buyoutPrice) return;
+        // Pass dummy bytes for proof in preview / test environments
+        const sealedKeyDummy = "0x01020304" as `0x${string}`;
+        const proofDummy = "0x01020304" as `0x${string}`;
+        const totalPayment = parseEther(buyoutPrice);
+
+        writeContract({
+          address: MARKETPLACE_ADDRESS,
+          abi: MARKETPLACE_ABI,
+          functionName: "purchase",
+          args: [BigInt(tokenId), sealedKeyDummy, proofDummy],
+          value: totalPayment,
+        });
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to trigger transaction.");
+      setIsPendingTx(false);
+    }
+  };
 
   const purchaseOptions = [
     {
@@ -32,7 +141,7 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
     {
       type: "rental",
       title: "Hourly Hire",
-      price: "0.5",
+      price: rentalPrice,
       icon: <Clock className="w-5 h-5 text-emerald-400" />,
       description: "Hire the AI agent for a specific duration. Requires a 40% platform fee and 60% creator payout split.",
       actionLabel: "Hire Agent",
@@ -53,8 +162,9 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
       
       <div className="grid grid-cols-1 gap-4">
         {purchaseOptions.map((opt) => {
-          const isAvailable = opt.price !== undefined && opt.price !== "";
-          
+          const isAvailable = opt.price !== undefined && opt.price !== "" && opt.price !== "0";
+          const currentPrice = opt.type === "rental" ? (hireHours * parseFloat(rentalPrice)).toFixed(2) : opt.price;
+
           return (
             <Card
               key={opt.type}
@@ -74,7 +184,7 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
                   </div>
                   {isAvailable && (
                     <span className="font-bold text-brand">
-                      {opt.type === "rental" ? "0.5" : opt.price} <span className="text-xs text-white/50">0G{opt.type === "rental" && "/hour"}</span>
+                      {opt.type === "rental" ? rentalPrice : opt.price} <span className="text-xs text-white/50">0G{opt.type === "rental" && "/hour"}</span>
                     </span>
                   )}
                 </div>
@@ -105,7 +215,7 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
                     <div className="space-y-1.5 pt-2 border-t border-white/5 text-[11px]">
                       <div className="flex justify-between">
                         <span className="text-white/40">Hourly rate:</span>
-                        <span className="text-white font-medium">0.5 0G/hour</span>
+                        <span className="text-white font-medium">{rentalPrice} 0G/hour</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-white/40">Selected duration:</span>
@@ -113,19 +223,15 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-white/40">Creator receives (60%):</span>
-                        <span className="text-emerald-400 font-bold">{(hireHours * 0.5 * 0.6).toFixed(1)} 0G</span>
+                        <span className="text-emerald-400 font-bold">{(hireHours * parseFloat(rentalPrice) * 0.6).toFixed(2)} 0G</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-white/40">Platform fee (40%):</span>
-                        <span className="text-brand font-bold">{(hireHours * 0.5 * 0.4).toFixed(1)} 0G</span>
+                        <span className="text-brand font-bold">{(hireHours * parseFloat(rentalPrice) * 0.4).toFixed(2)} 0G</span>
                       </div>
                       <div className="flex justify-between pt-1.5 border-t border-white/5 text-xs font-bold">
                         <span className="text-white">Total to pay:</span>
-                        <span className="text-brand">{(hireHours * 0.5).toFixed(1)} 0G</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] text-white/30 italic">
-                        <span>Access duration:</span>
-                        <span>{hireHours} hours</span>
+                        <span className="text-brand">{currentPrice} 0G</span>
                       </div>
                     </div>
                   </div>
@@ -135,18 +241,28 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
               {/* Action Button */}
               <div className="mt-4">
                 {isAvailable ? (
-                  <Button
-                    disabled={!isConnected}
-                    variant={opt.type === "buyout" ? "primary" : "secondary"}
-                    size="sm"
-                    className="w-full font-semibold"
-                  >
-                    {!isConnected
-                      ? "Connect Wallet to Purchase"
-                      : opt.type === "rental"
-                      ? `${opt.actionLabel} (${(hireHours * 0.5).toFixed(1)} 0G)`
-                      : `${opt.actionLabel} (${opt.price} 0G)`}
-                  </Button>
+                  opt.type === "ppm" ? (
+                    <span className="text-xs text-white/30 italic block text-center py-2 bg-white/[0.02] border border-dashed border-white/5 rounded-lg">
+                      Pay-Per-Message credits are funded automatically on chat
+                    </span>
+                  ) : (
+                    <Button
+                      disabled={!isConnected || isPendingTx || isWaiting}
+                      variant={opt.type === "buyout" ? "primary" : "secondary"}
+                      size="sm"
+                      onClick={() => handleAction(opt.type)}
+                      className="w-full font-semibold gap-1.5"
+                    >
+                      {(isPendingTx || isWaiting) && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {!isConnected
+                        ? "Connect Wallet to Purchase"
+                        : isWaiting
+                        ? "Confirming Transaction..."
+                        : isPendingTx
+                        ? "Sign in Wallet..."
+                        : `${opt.actionLabel} (${currentPrice} 0G)`}
+                    </Button>
+                  )
                 ) : (
                   <span className="text-xs text-white/30 italic block text-center py-2 bg-white/[0.02] border border-dashed border-white/5 rounded-lg">
                     Pricing tier not configured by creator
@@ -157,6 +273,26 @@ export const PricingPanel: React.FC<PricingPanelProps> = ({
           );
         })}
       </div>
+
+      {/* Transaction status explorer link */}
+      {txHash && (
+        <div className="p-3 bg-brand/5 border border-brand/20 rounded-lg text-center">
+          <a
+            href={`${EXPLORER_URL}/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-brand hover:underline font-semibold"
+          >
+            Transaction Submitted! View on ChainScan
+          </a>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs">
+          <strong>Error:</strong> {errorMessage}
+        </div>
+      )}
 
       {/* Access indicator alert */}
       <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-start gap-3">

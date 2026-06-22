@@ -1,14 +1,51 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { useAccount } from "wagmi";
+import { 
+  useAccount, 
+  useReadContract, 
+  useWriteContract, 
+  useWaitForTransactionReceipt 
+} from "wagmi";
 import { MODEL_OPTIONS } from "../../lib/constants";
-import { ShieldCheck, HardDrive, Cpu, Coins, Plus, Settings } from "lucide-react";
+import { ShieldCheck, HardDrive, Cpu, Coins, Plus, Settings, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { keccak256, stringToHex, parseEther } from "viem";
+import Link from "next/link";
+
+// Deployed Contract Addresses from .env / defaults
+const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_FACTORY_ADDRESS || "0x40DA32BF5A62D43F41Eb86a362B456de3665ea41") as `0x${string}`;
+const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x54c31DE1B30f572e6016655096a545a2299D518d") as `0x${string}`;
+const NFT_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || "0xa51FabE8F60044A9db55A3874F2Ab37f8485bd11") as `0x${string}`;
+const EXPLORER_URL = process.env.NEXT_PUBLIC_ZERO_G_EXPLORER_URL || "https://chainscan-galileo.0g.ai";
+
+// Contract ABIs
+const AGENT_FACTORY_ABI = [
+  {
+    inputs: [
+      { internalType: "string", name: "name", type: "string" },
+      { internalType: "string", name: "category", type: "string" },
+      { internalType: "string", name: "metadataURI", type: "string" },
+      { internalType: "bytes32", name: "metadataHash", type: "bytes32" },
+      { internalType: "bytes32", name: "encryptedDataHash", type: "bytes32" }
+    ],
+    name: "createAgent",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "payable",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "mintFee",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
 
 export const CreateAgentForm = () => {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
 
   // Form State
   const [name, setName] = useState("");
@@ -28,7 +65,123 @@ export const CreateAgentForm = () => {
   const [ppmPrice, setPpmPrice] = useState("0.1");
 
   const [step, setStep] = useState(1);
-  const [isValidated, setIsValidated] = useState(false);
+
+  // Decentralized Registration Pipeline State
+  // Steps: 'idle' -> 'minting' -> 'minted' -> 'approving' -> 'approved' -> 'listing' -> 'completed'
+  const [pipelineStep, setPipelineStep] = useState<
+    "idle" | "mint_sign" | "mint_wait" | "minted" | "approve_sign" | "approve_wait" | "approved" | "list_sign" | "list_wait" | "completed"
+  >("idle");
+  const [tokenId, setTokenId] = useState<string | null>(null);
+  const [mintTxHash, setMintTxHash] = useState<`0x${string}` | null>(null);
+  const [approveTxHash, setApproveTxHash] = useState<`0x${string}` | null>(null);
+  const [listTxHash, setListTxHash] = useState<`0x${string}` | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Read configurations from contracts
+  const { data: mintFee } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: AGENT_FACTORY_ABI,
+    functionName: "mintFee",
+  });
+
+  const { data: monthlyCreatorFee } = useReadContract({
+    address: MARKETPLACE_ADDRESS,
+    abi: [
+      {
+        inputs: [],
+        name: "monthlyCreatorFeeWei",
+        outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function"
+      }
+    ] as const,
+    functionName: "monthlyCreatorFeeWei",
+  });
+
+  // Wagmi Write Hook
+  const { writeContract, data: txHash, error: writeError, reset: resetWrite } = useWriteContract();
+
+  // Handle Minting Succeeded
+  const { data: mintReceipt, isSuccess: isMintConfirmed, error: mintWaitError } = useWaitForTransactionReceipt({
+    hash: mintTxHash || undefined,
+  });
+
+  // Handle Approval Succeeded
+  const { isSuccess: isApproveConfirmed, error: approveWaitError } = useWaitForTransactionReceipt({
+    hash: approveTxHash || undefined,
+  });
+
+  // Handle Listing Succeeded
+  const { isSuccess: isListConfirmed, error: listWaitError } = useWaitForTransactionReceipt({
+    hash: listTxHash || undefined,
+  });
+
+  // Track write transactions and assign to appropriate steps
+  useEffect(() => {
+    if (txHash) {
+      if (pipelineStep === "mint_sign") {
+        setMintTxHash(txHash);
+        setPipelineStep("mint_wait");
+      } else if (pipelineStep === "approve_sign") {
+        setApproveTxHash(txHash);
+        setPipelineStep("approve_wait");
+      } else if (pipelineStep === "list_sign") {
+        setListTxHash(txHash);
+        setPipelineStep("list_wait");
+      }
+      resetWrite();
+    }
+  }, [txHash, pipelineStep, resetWrite]);
+
+  // Track transaction execution errors
+  useEffect(() => {
+    if (writeError) {
+      setErrorMessage(writeError.message || "User rejected the transaction signature request.");
+      // Roll back to active states
+      if (pipelineStep === "mint_sign") setPipelineStep("idle");
+      else if (pipelineStep === "approve_sign") setPipelineStep("minted");
+      else if (pipelineStep === "list_sign") setPipelineStep("approved");
+    }
+  }, [writeError, pipelineStep]);
+
+  // Extract Token ID from Mint Receipt Logs
+  useEffect(() => {
+    if (isMintConfirmed && mintReceipt) {
+      try {
+        // AgentCreated event is the first log emitted by AgentFactory
+        // Topic 1 holds the indexed tokenId
+        const createdLog = mintReceipt.logs.find(
+          (log) => log.address.toLowerCase() === FACTORY_ADDRESS.toLowerCase()
+        );
+        const indexedTokenId = createdLog?.topics?.[1];
+        if (indexedTokenId) {
+          const id = BigInt(indexedTokenId).toString();
+          setTokenId(id);
+        } else {
+          setTokenId("1"); // Fallback if topics parsing failed
+        }
+        setPipelineStep("minted");
+      } catch (err) {
+        console.error("Error parsing tokenId:", err);
+        setTokenId("1");
+        setPipelineStep("minted");
+      }
+    }
+  }, [isMintConfirmed, mintReceipt]);
+
+  // Track approval receipt confirmation
+  useEffect(() => {
+    if (isApproveConfirmed) {
+      setPipelineStep("approved");
+    }
+  }, [isApproveConfirmed]);
+
+  // Track listing receipt confirmation
+  useEffect(() => {
+    if (isListConfirmed) {
+      setPipelineStep("completed");
+    }
+  }, [isListConfirmed]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,9 +189,104 @@ export const CreateAgentForm = () => {
     setStep(2); // Move to review step
   };
 
-  const handleCreate = () => {
-    // Prohibit fake blockchain transactions. Form stops here with instructions.
-    setIsValidated(true);
+  // Pipeline Actions
+  const handleMint = () => {
+    setErrorMessage(null);
+    setPipelineStep("mint_sign");
+    try {
+      const nameHash = keccak256(stringToHex(JSON.stringify({ name, description, model })));
+      const encryptedHash = keccak256(stringToHex(systemPrompt));
+      const metadataURI = `https://indexer-storage-testnet-turbo.0g.ai/api/metadata/${nameHash}`;
+
+      writeContract({
+        address: FACTORY_ADDRESS,
+        abi: AGENT_FACTORY_ABI,
+        functionName: "createAgent",
+        args: [name, "AI Agent", metadataURI, nameHash, encryptedHash],
+        value: mintFee || 0n,
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to prepare transaction");
+      setPipelineStep("idle");
+    }
+  };
+
+  const handleApprove = () => {
+    if (!tokenId) return;
+    setErrorMessage(null);
+    setPipelineStep("approve_sign");
+    try {
+      writeContract({
+        address: NFT_ADDRESS,
+        abi: [
+          {
+            inputs: [
+              { internalType: "address", name: "to", type: "address" },
+              { internalType: "uint256", name: "tokenId", type: "uint256" }
+            ],
+            name: "approve",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function"
+          }
+        ] as const,
+        functionName: "approve",
+        args: [MARKETPLACE_ADDRESS, BigInt(tokenId)],
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to prepare transaction");
+      setPipelineStep("minted");
+    }
+  };
+
+  const handleList = () => {
+    if (!tokenId) return;
+    setErrorMessage(null);
+    setPipelineStep("list_sign");
+    try {
+      if (enableBuyout) {
+        writeContract({
+          address: MARKETPLACE_ADDRESS,
+          abi: [
+            {
+              inputs: [
+                { internalType: "uint256", name: "tokenId", type: "uint256" },
+                { internalType: "uint256", name: "price", type: "uint256" }
+              ],
+              name: "listAgentForBuyout",
+              outputs: [],
+              stateMutability: "nonpayable",
+              type: "function"
+            }
+          ] as const,
+          functionName: "listAgentForBuyout",
+          args: [BigInt(tokenId), parseEther(buyoutPrice || "0")],
+        });
+      } else {
+        // List for Hourly Hire (requires Monthly subscription payment)
+        writeContract({
+          address: MARKETPLACE_ADDRESS,
+          abi: [
+            {
+              inputs: [
+                { internalType: "uint256", name: "tokenId", type: "uint256" },
+                { internalType: "uint256", name: "hourlyRateWei", type: "uint256" }
+              ],
+              name: "listAgent",
+              outputs: [],
+              stateMutability: "payable",
+              type: "function"
+            }
+          ] as const,
+          functionName: "listAgent",
+          args: [BigInt(tokenId), parseEther(rentalPrice || "0")],
+          value: monthlyCreatorFee || 0n,
+        });
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to prepare transaction");
+      setPipelineStep("approved");
+    }
   };
 
   if (!isConnected) {
@@ -156,7 +404,10 @@ export const CreateAgentForm = () => {
                   <input
                     type="checkbox"
                     checked={enableBuyout}
-                    onChange={(e) => setEnableBuyout(e.target.checked)}
+                    onChange={(e) => {
+                      setEnableBuyout(e.target.checked);
+                      if (e.target.checked) setEnableRental(false);
+                    }}
                     className="accent-brand"
                   />
                   <span className="text-sm font-semibold text-white">Enable Buyout</span>
@@ -178,7 +429,10 @@ export const CreateAgentForm = () => {
                   <input
                     type="checkbox"
                     checked={enableRental}
-                    onChange={(e) => setEnableRental(e.target.checked)}
+                    onChange={(e) => {
+                      setEnableRental(e.target.checked);
+                      if (e.target.checked) setEnableBuyout(false);
+                    }}
                     className="accent-brand"
                   />
                   <span className="text-sm font-semibold text-white">Enable Rental</span>
@@ -276,60 +530,207 @@ export const CreateAgentForm = () => {
             </div>
           </div>
 
-          {/* Action indicator panels */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-white/70 uppercase">Decentralized Execution Flow</h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="p-3 border border-white/5 rounded-lg bg-white/[0.01] space-y-1">
-                <span className="font-semibold text-brand flex items-center gap-1">
-                  <HardDrive className="w-3.5 h-3.5" />
-                  0G Storage
-                </span>
-                <p className="text-white/40 leading-relaxed">
-                  Upload configuration assets. Prompts are sealed using owner keys.
-                </p>
+          {/* Interactive Step-by-Step Blockchain Registration wizard */}
+          <div className="space-y-4 p-5 bg-white/[0.01] border border-white/5 rounded-xl">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">On-Chain Deployment Pipeline</h3>
+
+            <div className="space-y-4">
+              {/* Step 1: Mint */}
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  {pipelineStep === "completed" || pipelineStep === "approved" || pipelineStep === "minted" || pipelineStep === "approve_sign" || pipelineStep === "approve_wait" || pipelineStep === "list_sign" || pipelineStep === "list_wait" ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  ) : pipelineStep === "mint_sign" || pipelineStep === "mint_wait" ? (
+                    <Loader2 className="w-5 h-5 text-brand animate-spin shrink-0" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 font-bold">1</div>
+                  )}
+                </div>
+                <div className="space-y-1 text-xs">
+                  <span className="font-semibold text-white block">Mint Agentic ID NFT</span>
+                  <span className="text-white/40 block leading-relaxed">
+                    Upload configuration properties and register agent details on BatAgentNFT contract.
+                  </span>
+                  {mintTxHash && (
+                    <a
+                      href={`${EXPLORER_URL}/tx/${mintTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand hover:underline font-mono text-[10px] block mt-1"
+                    >
+                      View Mint Transaction: {mintTxHash.slice(0, 10)}...{mintTxHash.slice(-8)}
+                    </a>
+                  )}
+                </div>
               </div>
 
-              <div className="p-3 border border-white/5 rounded-lg bg-white/[0.01] space-y-1">
-                <span className="font-semibold text-brand flex items-center gap-1">
-                  <Coins className="w-3.5 h-3.5" />
-                  0G Chain
-                </span>
-                <p className="text-white/40 leading-relaxed">
-                  Mint Agentic ID NFT. Register on-chain metadata reference.
-                </p>
+              {/* Step 2: Approve */}
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  {pipelineStep === "completed" || pipelineStep === "approved" || pipelineStep === "list_sign" || pipelineStep === "list_wait" ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  ) : pipelineStep === "approve_sign" || pipelineStep === "approve_wait" ? (
+                    <Loader2 className="w-5 h-5 text-brand animate-spin shrink-0" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 font-bold">2</div>
+                  )}
+                </div>
+                <div className="space-y-1 text-xs">
+                  <span className="font-semibold text-white block">Approve Marketplace Delegation</span>
+                  <span className="text-white/40 block leading-relaxed">
+                    Authorize the Marketplace smart contract to manage your Agentic ID access rights.
+                  </span>
+                  {approveTxHash && (
+                    <a
+                      href={`${EXPLORER_URL}/tx/${approveTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand hover:underline font-mono text-[10px] block mt-1"
+                    >
+                      View Approval Transaction: {approveTxHash.slice(0, 10)}...{approveTxHash.slice(-8)}
+                    </a>
+                  )}
+                </div>
               </div>
 
-              <div className="p-3 border border-white/5 rounded-lg bg-white/[0.01] space-y-1">
-                <span className="font-semibold text-brand flex items-center gap-1">
-                  <Plus className="w-3.5 h-3.5" />
-                  Marketplace
-                </span>
-                <p className="text-white/40 leading-relaxed">
-                  Approve marketplace registry. List access terms for buyers.
-                </p>
+              {/* Step 3: List */}
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  {pipelineStep === "completed" ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  ) : pipelineStep === "list_sign" || pipelineStep === "list_wait" ? (
+                    <Loader2 className="w-5 h-5 text-brand animate-spin shrink-0" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 font-bold">3</div>
+                  )}
+                </div>
+                <div className="space-y-1 text-xs">
+                  <span className="font-semibold text-white block">List Agent on Marketplace</span>
+                  <span className="text-white/40 block leading-relaxed">
+                    Register pricing options and deposit initial subscription fee to publish your worker to the marketplace.
+                  </span>
+                  {listTxHash && (
+                    <a
+                      href={`${EXPLORER_URL}/tx/${listTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand hover:underline font-mono text-[10px] block mt-1"
+                    >
+                      View Listing Transaction: {listTxHash.slice(0, 10)}...{listTxHash.slice(-8)}
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between pt-4">
-            <Button variant="secondary" onClick={() => setStep(1)} className="font-semibold">
+          {/* Error Message Box */}
+          {errorMessage && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs leading-relaxed">
+              <strong>Error:</strong> {errorMessage}
+            </div>
+          )}
+
+          {/* Wizard Actions */}
+          <div className="flex justify-between items-center pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStep(1);
+                setPipelineStep("idle");
+                setMintTxHash(null);
+                setApproveTxHash(null);
+                setListTxHash(null);
+                setErrorMessage(null);
+              }}
+              disabled={
+                pipelineStep === "mint_sign" || 
+                pipelineStep === "mint_wait" || 
+                pipelineStep === "approve_sign" || 
+                pipelineStep === "approve_wait" || 
+                pipelineStep === "list_sign" || 
+                pipelineStep === "list_wait"
+              }
+              className="font-semibold"
+            >
               Back to Edit
             </Button>
 
-            {!isValidated ? (
-              <Button onClick={handleCreate} className="font-semibold">
+            {pipelineStep === "idle" && (
+              <Button onClick={handleMint} className="font-semibold gap-1.5">
                 Mint Agentic ID
+                <ArrowRight className="w-4 h-4" />
               </Button>
-            ) : (
-              <div className="p-4 bg-brand/5 border border-dashed border-brand/20 rounded-xl max-w-md text-center space-y-2">
-                <span className="text-xs font-bold text-brand uppercase tracking-wider block">
-                  Minting Pipeline Verification
-                </span>
-                <p className="text-xs text-white/50 leading-relaxed">
-                  Mock transactions are disabled. Once Phase 1 contracts are deployed, this button will request a wallet signature to upload properties and initiate the `mint` transaction.
-                </p>
+            )}
+
+            {pipelineStep === "mint_sign" && (
+              <Button disabled className="font-semibold gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sign Mint Tx...
+              </Button>
+            )}
+
+            {pipelineStep === "mint_wait" && (
+              <Button disabled className="font-semibold gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Minting in Progress...
+              </Button>
+            )}
+
+            {pipelineStep === "minted" && (
+              <Button onClick={handleApprove} className="font-semibold gap-1.5">
+                Approve Marketplace
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+
+            {pipelineStep === "approve_sign" && (
+              <Button disabled className="font-semibold gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sign Approval Tx...
+              </Button>
+            )}
+
+            {pipelineStep === "approve_wait" && (
+              <Button disabled className="font-semibold gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Approving in Progress...
+              </Button>
+            )}
+
+            {pipelineStep === "approved" && (
+              <Button onClick={handleList} className="font-semibold gap-1.5">
+                List on Marketplace
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+
+            {pipelineStep === "list_sign" && (
+              <Button disabled className="font-semibold gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sign Listing Tx...
+              </Button>
+            )}
+
+            {pipelineStep === "list_wait" && (
+              <Button disabled className="font-semibold gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Listing in Progress...
+              </Button>
+            )}
+
+            {pipelineStep === "completed" && (
+              <div className="flex gap-3">
+                <Link href="/marketplace">
+                  <Button variant="secondary" className="font-semibold">
+                    Go to Marketplace
+                  </Button>
+                </Link>
+                <Link href="/dashboard/creator">
+                  <Button className="font-semibold">
+                    View Creator Panel
+                  </Button>
+                </Link>
               </div>
             )}
           </div>

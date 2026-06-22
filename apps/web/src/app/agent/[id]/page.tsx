@@ -1,34 +1,163 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { 
+  useAccount, 
+  useReadContract 
+} from "wagmi";
 import { AgentProfile } from "@/components/agent/AgentProfile";
 import { PricingPanel } from "@/components/agent/PricingPanel";
 import { ChatPanel } from "@/components/agent/ChatPanel";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { formatEther } from "viem";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+const NFT_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || "0xa51FabE8F60044A9db55A3874F2Ab37f8485bd11") as `0x${string}`;
+const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x54c31DE1B30f572e6016655096a545a2299D518d") as `0x${string}`;
 
-export default async function AgentDetailPage({ params }: PageProps) {
-  const { id } = await params;
+const NFT_ABI = [
+  {
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "getAgent",
+    outputs: [
+      {
+        components: [
+          { internalType: "address", name: "creator", type: "address" },
+          { internalType: "string", name: "name", type: "string" },
+          { internalType: "string", name: "category", type: "string" },
+          { internalType: "string", name: "metadataURI", type: "string" },
+          { internalType: "bytes32", name: "metadataHash", type: "bytes32" },
+          { internalType: "bytes32", name: "encryptedDataHash", type: "bytes32" },
+          { internalType: "bool", name: "active", type: "bool" },
+          { internalType: "uint256", name: "createdAt", type: "uint256" }
+        ],
+        internalType: "struct BatAgentNFT.AgentData",
+        name: "",
+        type: "tuple"
+      }
+    ],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
 
-  // Layout preview model so the reviewer can see the UI layout
-  const previewAgent = {
-    id: id,
-    name: "Galileo Assistant",
-    description: "An advanced coding and smart contract assistant trained specifically on 0G chain specifications, storage client structures, and compute inference models.",
-    creator: "0x22E03a6A89B950F1c82ec5e74F8eCa321a105296",
-    metadataHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
-    modelName: "Qwen/Qwen2.5-72B-Instruct",
-    buyoutPrice: "50",
-    rentalPrice: "2",
-    ppmPrice: "0.1",
+const MARKETPLACE_ABI = [
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "listings",
+    outputs: [
+      { internalType: "address", name: "seller", type: "address" },
+      { internalType: "uint256", name: "price", type: "uint256" },
+      { internalType: "uint256", name: "hourlyRateWei", type: "uint256" },
+      { internalType: "bool", name: "active", type: "bool" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "buyer", type: "address" },
+      { internalType: "uint256", name: "tokenId", type: "uint256" }
+    ],
+    name: "hasAccess",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
+export default function AgentDetailPage() {
+  const params = useParams();
+  const { address, isConnected } = useAccount();
+  const idStr = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const tokenId = idStr ? BigInt(idStr) : 1n;
+
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Fetch Agent data from BatAgentNFT
+  const { data: agentData, isLoading: isLoadingAgent, refetch: refetchAgent } = useReadContract({
+    address: NFT_ADDRESS,
+    abi: NFT_ABI,
+    functionName: "getAgent",
+    args: [tokenId],
+    query: {
+      enabled: !!tokenId,
+    }
+  });
+
+  // Fetch Marketplace listing details
+  const { data: listing, isLoading: isLoadingListing, refetch: refetchListing } = useReadContract({
+    address: MARKETPLACE_ADDRESS,
+    abi: MARKETPLACE_ABI,
+    functionName: "listings",
+    args: [tokenId],
+    query: {
+      enabled: !!tokenId,
+    }
+  });
+
+  // Fetch user access authorization
+  const { data: hasAccessStatus, isLoading: isLoadingAccess, refetch: refetchAccess } = useReadContract({
+    address: MARKETPLACE_ADDRESS,
+    abi: MARKETPLACE_ABI,
+    functionName: "hasAccess",
+    args: address ? [address, tokenId] : undefined,
+    query: {
+      enabled: isConnected && !!address && !!tokenId,
+    }
+  });
+
+  // Handle manual refetch on transaction completion
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
+
+  useEffect(() => {
+    refetchAgent();
+    refetchListing();
+    refetchAccess();
+  }, [refreshTrigger, refetchAgent, refetchListing, refetchAccess]);
+
+  const hasAccess = !!hasAccessStatus;
+  const isLoaded = !isLoadingAgent && !isLoadingListing && (!isConnected || !isLoadingAccess);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-4">
+        <Loader2 className="w-12 h-12 text-brand animate-spin" />
+        <p className="text-white/50 text-sm font-semibold">Resolving Agentic ID details from 0G Galileo Testnet...</p>
+      </div>
+    );
+  }
+
+  if (!agentData || !agentData.active) {
+    return (
+      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 flex items-center justify-center w-full">
+        <div className="text-center space-y-4 max-w-md">
+          <ShieldAlert className="w-12 h-12 text-red-500 mx-auto" />
+          <h2 className="text-xl font-bold text-white">Agent Not Found</h2>
+          <p className="text-white/50 text-sm leading-relaxed">
+            The requested Agentic ID token is either inactive, does not exist, or was deleted from the BatAgentNFT registry.
+          </p>
+          <Link href="/marketplace">
+            <Button size="sm" className="font-semibold">
+              Return to Marketplace
+            </Button>
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  // Parse listing details
+  const buyoutPrice = listing && listing.active && listing.price > 0n ? formatEther(listing.price) : undefined;
+  const rentalPrice = listing && listing.active && listing.hourlyRateWei > 0n ? formatEther(listing.hourlyRateWei) : undefined;
 
   return (
     <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 w-full">
-      {/* Back button and Notice */}
+      {/* Back button and Access Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <Link href="/marketplace">
           <Button variant="ghost" size="sm" className="flex items-center gap-1.5 -ml-3">
@@ -37,10 +166,17 @@ export default async function AgentDetailPage({ params }: PageProps) {
           </Button>
         </Link>
 
-        <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
-          <ShieldAlert className="w-3.5 h-3.5" />
-          <span>Demo Preview — Dynamic on-chain resolution is stubbed</span>
-        </div>
+        {hasAccess ? (
+          <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-xs font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Authorized — Active On-Chain Access Rights Detected</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs font-semibold">
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Locked — On-Chain Rental or Buyout Required to Chat</span>
+          </div>
+        )}
       </div>
 
       {/* Grid Layout */}
@@ -48,23 +184,24 @@ export default async function AgentDetailPage({ params }: PageProps) {
         {/* Left Side: Profile & Verification */}
         <div className="lg:col-span-2 space-y-8">
           <AgentProfile
-            id={previewAgent.id}
-            name={previewAgent.name}
-            description={previewAgent.description}
-            creator={previewAgent.creator}
-            metadataHash={previewAgent.metadataHash}
-            modelName={previewAgent.modelName}
+            id={idStr || "1"}
+            name={agentData.name}
+            description={`${agentData.category} — ${agentData.metadataURI.includes("metadata/") ? "Configured on 0G testnet." : agentData.metadataURI}`}
+            creator={agentData.creator}
+            metadataHash={agentData.metadataHash}
+            modelName="Qwen/Qwen2.5-72B-Instruct"
           />
-          {/* Chat Interface (hasAccess=false for preview overlay) */}
-          <ChatPanel hasAccess={false} agentName={previewAgent.name} />
+          {/* Chat Interface (permits chat if hasAccess is true) */}
+          <ChatPanel hasAccess={hasAccess} agentName={agentData.name} modelName="Qwen/Qwen2.5-72B-Instruct" />
         </div>
 
         {/* Right Side: Pricing Options */}
         <div>
           <PricingPanel
-            buyoutPrice={previewAgent.buyoutPrice}
-            rentalPrice={previewAgent.rentalPrice}
-            ppmPrice={previewAgent.ppmPrice}
+            tokenId={idStr || "1"}
+            buyoutPrice={buyoutPrice}
+            rentalPrice={rentalPrice}
+            onSuccess={handleRefresh}
           />
         </div>
       </div>
