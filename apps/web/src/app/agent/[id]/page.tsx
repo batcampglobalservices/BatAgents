@@ -189,10 +189,10 @@ export default function AgentDetailPage() {
             description={`${agentData.category} — ${agentData.metadataURI.includes("metadata/") ? "Configured on 0G testnet." : agentData.metadataURI}`}
             creator={agentData.creator}
             metadataHash={agentData.metadataHash}
-            modelName="Qwen/Qwen2.5-72B-Instruct"
+            modelName="qwen2.5-omni"
           />
           {/* Chat Interface (permits chat if hasAccess is true) */}
-          <ChatPanel hasAccess={hasAccess} agentName={agentData.name} modelName="Qwen/Qwen2.5-72B-Instruct" />
+          <ChatPanel hasAccess={hasAccess} agentName={agentData.name} modelName="qwen2.5-omni" />
         </div>
 
         {/* Right Side: Pricing Options */}

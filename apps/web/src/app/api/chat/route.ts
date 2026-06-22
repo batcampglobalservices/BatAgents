@@ -100,6 +100,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // Map any unsupported model name from the client/metadata to the active testnet model
+    const allowedModels = ["qwen2.5-omni", "qwen-image-edit"];
+    const targetModel = allowedModels.includes(model) ? model : defaultModel;
+
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -107,7 +111,7 @@ export async function POST(req: Request) {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || defaultModel,
+        model: targetModel,
         messages,
       }),
     });

@@ -386,7 +386,7 @@ export default function AgentWorkspacePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: messagesToSend,
-          model: "Qwen/Qwen2.5-72B-Instruct",
+          model: "qwen2.5-omni",
           tokenId: idStr,
           buyer: address,
           signature: sig,

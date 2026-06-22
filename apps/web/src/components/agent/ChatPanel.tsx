@@ -14,7 +14,7 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   hasAccess = false,
   agentName,
-  modelName = "Qwen/Qwen2.5-72B-Instruct",
+  modelName = "qwen2.5-omni",
 }) => {
   const { isConnected } = useAccount();
   const [messages, setMessages] = useState<Array<{ sender: "user" | "agent"; text: string }>>([]);
