@@ -15,9 +15,9 @@ import { keccak256, stringToHex, parseEther } from "viem";
 import Link from "next/link";
 
 // Deployed Contract Addresses from .env / defaults
-const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_FACTORY_ADDRESS || "0x40DA32BF5A62D43F41Eb86a362B456de3665ea41") as `0x${string}`;
-const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x54c31DE1B30f572e6016655096a545a2299D518d") as `0x${string}`;
-const NFT_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || "0xa51FabE8F60044A9db55A3874F2Ab37f8485bd11") as `0x${string}`;
+const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_FACTORY_ADDRESS || "0x7eF01b1eabDD6Af033e7a89b6d233Aea5E536544") as `0x${string}`;
+const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x378B76beE85dcc4998ED099ED3373C8438e73958") as `0x${string}`;
+const NFT_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || "0xBA3A7aAf2490bD66CB42ba74e8bf2c55e115E920") as `0x${string}`;
 const EXPLORER_URL = process.env.NEXT_PUBLIC_ZERO_G_EXPLORER_URL || "https://chainscan-galileo.0g.ai";
 
 // Contract ABIs

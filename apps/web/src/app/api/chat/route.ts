@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { createPublicClient, http, verifyMessage } from "viem";
 import { ogGalileoTestnet } from "@/config/chains";
 
-const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x54c31DE1B30f572e6016655096a545a2299D518d") as `0x${string}`;
-const ACCESS_CONTROL_ADDRESS = (process.env.NEXT_PUBLIC_ACCESS_CONTROL_ADDRESS || "0x6A79e812A61d27D714C6C347f151F0d790dB7eDC") as `0x${string}`;
+const MARKETPLACE_ADDRESS = (process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || "0x378B76beE85dcc4998ED099ED3373C8438e73958") as `0x${string}`;
+const ACCESS_CONTROL_ADDRESS = (process.env.NEXT_PUBLIC_ACCESS_CONTROL_ADDRESS || "0xDC140d2B1429878D81F1CB65ab134839d01aB29A") as `0x${string}`;
 
 const ACCESS_ABI = [
   {
