@@ -107,12 +107,12 @@ export const CreateAgentForm = () => {
   });
 
   // Handle Approval Succeeded
-  const { isSuccess: isApproveConfirmed, error: approveWaitError } = useWaitForTransactionReceipt({
+  const { data: approveReceipt, isSuccess: isApproveConfirmed, error: approveWaitError } = useWaitForTransactionReceipt({
     hash: approveTxHash || undefined,
   });
 
   // Handle Listing Succeeded
-  const { isSuccess: isListConfirmed, error: listWaitError } = useWaitForTransactionReceipt({
+  const { data: listReceipt, isSuccess: isListConfirmed, error: listWaitError } = useWaitForTransactionReceipt({
     hash: listTxHash || undefined,
   });
 
@@ -147,23 +147,62 @@ export const CreateAgentForm = () => {
   // Extract Token ID from Mint Receipt Logs
   useEffect(() => {
     if (isMintConfirmed && mintReceipt) {
+      if (mintReceipt.status === "reverted") {
+        setErrorMessage("Mint transaction reverted on-chain. Please check your gas/balance and ensure parameters are valid.");
+        setPipelineStep("idle");
+        return;
+      }
+
       try {
-        // AgentCreated event is the first log emitted by AgentFactory
-        // Topic 1 holds the indexed tokenId
-        const createdLog = mintReceipt.logs.find(
-          (log) => log.address.toLowerCase() === FACTORY_ADDRESS.toLowerCase()
+        let foundTokenId: string | null = null;
+
+        // Method 1: Find ERC-721 Transfer log on NFT contract
+        // event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
+        // topic 0: 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+        const transferLog = mintReceipt.logs.find(
+          (log) =>
+            log.address.toLowerCase() === NFT_ADDRESS.toLowerCase() &&
+            log.topics?.[0] === "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
         );
-        const indexedTokenId = createdLog?.topics?.[1];
-        if (indexedTokenId) {
-          const id = BigInt(indexedTokenId).toString();
-          setTokenId(id);
-        } else {
-          setTokenId("1"); // Fallback if topics parsing failed
+        if (transferLog && transferLog.topics?.[3]) {
+          foundTokenId = BigInt(transferLog.topics[3]).toString();
         }
-        setPipelineStep("minted");
-      } catch (err) {
+
+        // Method 2: Find Transfer log on any contract (as backup)
+        if (!foundTokenId) {
+          const anyTransferLog = mintReceipt.logs.find(
+            (log) => log.topics?.[0] === "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+          );
+          if (anyTransferLog && anyTransferLog.topics?.[3]) {
+            foundTokenId = BigInt(anyTransferLog.topics[3]).toString();
+          }
+        }
+
+        // Method 3: Find AgentCreated log on Factory contract
+        if (!foundTokenId) {
+          const createdLog = mintReceipt.logs.find(
+            (log) => log.address.toLowerCase() === FACTORY_ADDRESS.toLowerCase()
+          );
+          const indexedTokenId = createdLog?.topics?.[1];
+          if (indexedTokenId) {
+            foundTokenId = BigInt(indexedTokenId).toString();
+          }
+        }
+
+        if (foundTokenId) {
+          setTokenId(foundTokenId);
+          setErrorMessage(null); // Clear any previous error
+          setPipelineStep("minted");
+        } else {
+          console.warn("Could not parse tokenId from logs. Defaulting to 1.");
+          setTokenId("1"); // Fallback if topics parsing failed
+          setErrorMessage("Warning: Could not extract Token ID from transaction logs. Fallback ID '1' will be used, which might fail approval if another ID was minted.");
+          setPipelineStep("minted");
+        }
+      } catch (err: any) {
         console.error("Error parsing tokenId:", err);
         setTokenId("1");
+        setErrorMessage("Warning: Error parsing Token ID. Fallback ID '1' will be used.");
         setPipelineStep("minted");
       }
     }
@@ -171,17 +210,27 @@ export const CreateAgentForm = () => {
 
   // Track approval receipt confirmation
   useEffect(() => {
-    if (isApproveConfirmed) {
+    if (isApproveConfirmed && approveReceipt) {
+      if (approveReceipt.status === "reverted") {
+        setErrorMessage("Approval transaction reverted on-chain.");
+        setPipelineStep("minted");
+        return;
+      }
       setPipelineStep("approved");
     }
-  }, [isApproveConfirmed]);
+  }, [isApproveConfirmed, approveReceipt]);
 
   // Track listing receipt confirmation
   useEffect(() => {
-    if (isListConfirmed) {
+    if (isListConfirmed && listReceipt) {
+      if (listReceipt.status === "reverted") {
+        setErrorMessage("Listing transaction reverted on-chain.");
+        setPipelineStep("approved");
+        return;
+      }
       setPipelineStep("completed");
     }
-  }, [isListConfirmed]);
+  }, [isListConfirmed, listReceipt]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
