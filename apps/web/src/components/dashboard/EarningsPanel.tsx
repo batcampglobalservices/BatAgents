@@ -4,16 +4,20 @@ import React from "react";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { useAccount } from "wagmi";
-import { Coins, ExternalLink, ShieldAlert } from "lucide-react";
+import { Coins, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
 
 interface EarningsPanelProps {
   claimableAmount?: string;
   withdrawnAmount?: string;
+  onWithdraw?: () => void;
+  isClaiming?: boolean;
 }
 
 export const EarningsPanel: React.FC<EarningsPanelProps> = ({
   claimableAmount = "0.00",
   withdrawnAmount = "0.00",
+  onWithdraw,
+  isClaiming = false,
 }) => {
   const { isConnected } = useAccount();
 
@@ -37,14 +41,22 @@ export const EarningsPanel: React.FC<EarningsPanelProps> = ({
 
           <div className="pt-4 relative z-10">
             <Button
-              disabled={!isConnected || parseFloat(claimableAmount) === 0}
+              disabled={!isConnected || parseFloat(claimableAmount) === 0 || isClaiming}
               variant="primary"
               size="sm"
-              className="w-full font-semibold"
+              className="w-full font-semibold flex items-center justify-center gap-1.5"
+              onClick={onWithdraw}
             >
-              {!isConnected
-                ? "Connect Wallet to Claim"
-                : `Withdraw Royalties (${claimableAmount} 0G)`}
+              {isClaiming ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  Claiming Royalties...
+                </>
+              ) : !isConnected ? (
+                "Connect Wallet to Claim"
+              ) : (
+                `Withdraw Royalties (${claimableAmount} 0G)`
+              )}
             </Button>
           </div>
         </Card>

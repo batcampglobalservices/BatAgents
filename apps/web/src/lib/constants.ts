@@ -22,13 +22,13 @@ export const OG_NETWORKS = {
     chainScan: "https://chainscan.0g.ai",
     storageScan: "https://storagescan.0g.ai",
     storageIndexer: "https://indexer-storage-turbo.0g.ai",
-    computeRouter: "https://router-api.0g.ai/v1",
+    computeRouter: "https://router-api-testnet.integratenetwork.work/v1",
     faucet: "",
   },
 };
 
 export const MODEL_OPTIONS = [
-  { id: "zai-org/GLM-5-FP8", name: "GLM-5 FP8 (zai-org)" },
+  { id: "qwen2.5-omni", name: "Qwen 2.5 Omni" },
   { id: "Qwen/Qwen2.5-72B-Instruct", name: "Qwen 2.5 72B Instruct" },
   { id: "meta-llama/Llama-3-70b-chat-hf", name: "Llama 3 70B Chat" },
 ];

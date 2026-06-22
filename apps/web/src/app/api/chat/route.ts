@@ -89,12 +89,13 @@ export async function POST(req: Request) {
     }
 
     // 5. Query 0G Compute
-    const baseUrl = process.env.ZERO_G_COMPUTE_BASE_URL || process.env.NEXT_PUBLIC_ZERO_G_COMPUTE_BASE_URL || "https://router-api.0g.ai/v1";
-    const apiKey = process.env.ZERO_G_COMPUTE_API_KEY;
+    const baseUrl = process.env.OG_BASE_URL || "https://router-api-testnet.integratenetwork.work/v1";
+    const apiKey = process.env.OG_API_KEY;
+    const defaultModel = process.env.OG_MODEL || "qwen2.5-omni";
 
-    if (!baseUrl || !apiKey) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "0G Compute is not configured yet. Add the required compute configuration to enable live agent responses." },
+        { error: "0G Compute API key is not configured. Please add OG_API_KEY to your environment variables." },
         { status: 400 }
       );
     }
@@ -106,15 +107,46 @@ export async function POST(req: Request) {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || "Qwen/Qwen2.5-72B-Instruct",
+        model: model || defaultModel,
         messages,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
+      let consumerError = `0G Compute error (Status ${response.status}): ${errText}`;
+      
+      try {
+        const parsed = JSON.parse(errText);
+        const errObj = parsed.error || {};
+        const code = (typeof errObj === "string" ? errObj : errObj.code || "").toLowerCase();
+        const msg = (typeof errObj === "string" ? "" : errObj.message || "").toLowerCase();
+
+        if (code === "invalid_api_key" || msg.includes("api key") || msg.includes("invalid key") || msg.includes("api_key") || response.status === 401) {
+          consumerError = "Invalid 0G API key or wrong network endpoint.";
+        } else if (code === "model_not_found" || msg.includes("model") || msg.includes("not found") || msg.includes("no such model")) {
+          consumerError = "The selected 0G model is not available on this 0G network.";
+        } else if (code === "insufficient_balance" || msg.includes("balance") || msg.includes("credit") || msg.includes("insufficient")) {
+          consumerError = "Your 0G Router balance is too low.";
+        } else if (code === "rate_limit_exceeded" || msg.includes("rate limit") || msg.includes("too many requests") || response.status === 429) {
+          consumerError = "0G rate limit reached. Please try again later.";
+        }
+      } catch (e) {
+        // Parsing failed, fallback to string checks
+        const lowercaseBody = errText.toLowerCase();
+        if (lowercaseBody.includes("invalid_api_key") || lowercaseBody.includes("api key") || response.status === 401) {
+          consumerError = "Invalid 0G API key or wrong network endpoint.";
+        } else if (lowercaseBody.includes("model_not_found") || lowercaseBody.includes("model")) {
+          consumerError = "The selected 0G model is not available on this 0G network.";
+        } else if (lowercaseBody.includes("insufficient_balance") || lowercaseBody.includes("balance") || lowercaseBody.includes("credit")) {
+          consumerError = "Your 0G Router balance is too low.";
+        } else if (lowercaseBody.includes("rate_limit_exceeded") || lowercaseBody.includes("rate limit") || response.status === 429) {
+          consumerError = "0G rate limit reached. Please try again later.";
+        }
+      }
+
       return NextResponse.json(
-        { error: `0G Compute error: ${errText}` },
+        { error: consumerError },
         { status: response.status }
       );
     }
