@@ -23,7 +23,7 @@ module.exports = {
   },
   networks: {
     "0g-testnet": {
-      url: process.env.ZERO_G_RPC_URL || "https://evmrpc-testnet.0g.ai",
+      url: process.env.OG_RPC_URL || process.env.ZERO_G_RPC_URL || "https://rpc.ankr.com/0g_galileo_testnet_evm",
       chainId: 16602,
       accounts: accounts,
     },

@@ -9,7 +9,7 @@ export const BRAND_COLORS = {
 export const OG_NETWORKS = {
   testnet: {
     chainId: 16602,
-    rpcUrl: "https://evmrpc-testnet.0g.ai",
+    rpcUrl: "https://rpc.ankr.com/0g_galileo_testnet_evm",
     chainScan: "https://chainscan-galileo.0g.ai",
     storageScan: "https://storagescan-galileo.0g.ai",
     storageIndexer: "https://indexer-storage-testnet-turbo.0g.ai",

@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Setup Viem public client for 0G Galileo Testnet
-    const rpcUrl = process.env.NEXT_PUBLIC_ZERO_G_RPC_URL || "https://evmrpc-testnet.0g.ai";
+    const rpcUrl = process.env.OG_RPC_URL || process.env.NEXT_PUBLIC_ZERO_G_RPC_URL || "https://rpc.ankr.com/0g_galileo_testnet_evm";
     const publicClient = createPublicClient({
       chain: ogGalileoTestnet,
       transport: http(rpcUrl),
