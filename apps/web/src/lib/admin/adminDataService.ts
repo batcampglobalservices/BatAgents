@@ -274,15 +274,15 @@ export const adminDataService = {
             let listingStatus: "listed" | "delisted" | "not_listed" = "not_listed";
 
             try {
-              const listing = await publicClient.readContract({
+              const [seller, priceVal, hourlyRateWei, active] = await publicClient.readContract({
                 address: MARKETPLACE_ADDRESS,
                 abi: MARKETPLACE_ABI,
                 functionName: "listings",
                 args: [tokenId],
               });
-              isListed = listing.active;
-              priceStr = listing.price > 0n ? `${formatEther(listing.price)} 0G` : `${formatEther(listing.hourlyRateWei)} 0G/hr`;
-              listingStatus = isListed ? "listed" : (listing.price > 0n || listing.hourlyRateWei > 0n ? "delisted" : "not_listed");
+              isListed = active;
+              priceStr = priceVal > 0n ? `${formatEther(priceVal)} 0G` : `${formatEther(hourlyRateWei)} 0G/hr`;
+              listingStatus = isListed ? "listed" : (priceVal > 0n || hourlyRateWei > 0n ? "delisted" : "not_listed");
             } catch (err) {}
 
             const usageCount = usageLogs.filter(log => log.args.tokenId === tokenId).length;

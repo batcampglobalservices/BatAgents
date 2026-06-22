@@ -186,15 +186,15 @@ export default function CreatorDashboard() {
               let price = "";
               let rentalPrice = "";
               try {
-                const listing = await publicClient.readContract({
+                const [seller, priceVal, hourlyRateWei, active] = await publicClient.readContract({
                   address: CONTRACT_ADDRESSES.marketplace as `0x${string}`,
                   abi: MARKETPLACE_ABI,
                   functionName: "listings",
                   args: [idVal],
                 });
-                isListed = listing.active;
-                price = formatEther(listing.price);
-                rentalPrice = formatEther(listing.hourlyRateWei * 24n); // Daily rate
+                isListed = active;
+                price = formatEther(priceVal);
+                rentalPrice = formatEther(hourlyRateWei * 24n); // Daily rate
               } catch (err) {
                 console.error(`Error querying listing for token ${idVal}:`, err);
               }
@@ -240,7 +240,7 @@ export default function CreatorDashboard() {
                 price,
                 rentalPrice,
                 chatsServed
-              };
+              } as CreatorAgent;
             } catch (err) {
               return null;
             }
