@@ -302,7 +302,7 @@ export const adminDataService = {
               reportsCount: 0,
               active: agentData.active,
               createdAt: new Date(Number(agentData.createdAt) * 1000).toISOString()
-            };
+            } as AdminAgent;
           } catch (err) {
             return null;
           }
